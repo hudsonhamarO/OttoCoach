@@ -771,6 +771,7 @@
       <div class="action-group">
         <button class="action-btn" id="openTemplatesBtn"><svg class="icon"><use href="#i-clipboard"/></svg>Templates</button>
         <button class="action-btn ai" id="openAiBtn"><svg class="icon"><use href="#i-sparkle"/></svg>AI Plan Generator</button>
+        <button class="action-btn ai" id="openAiDrillBtn"><svg class="icon"><use href="#i-sparkle"/></svg>AI Drill Generator</button>
       </div>
       <div class="action-group">
         <button class="action-btn ghost" id="openPlansBtn"><svg class="icon"><use href="#i-folder"/></svg>My Plans</button>
@@ -1051,6 +1052,63 @@
       <div class="footer-actions" style="margin-top:12px;">
         <button class="btn-outline" id="aiRetryBtn">Try again</button>
         <button class="btn-primary" id="aiUseBtn">Use this plan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Drill Generator modal -->
+<div class="modal-overlay" id="aiDrillModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">AI drill generator</h3>
+      <button class="modal-close" data-close="aiDrillModal">✕</button>
+    </div>
+    <p class="modal-sub">Describe what you need a drill for and it'll write one up — name, setup notes, and a court diagram when one would help — ready to drop into your timeline.</p>
+
+    <div class="ai-field">
+      <label for="aiDrillFocusInput">What do you need a drill for?</label>
+      <textarea id="aiDrillFocusInput" placeholder="e.g. a quick warm-up game that also sharpens passing platform for 12U"></textarea>
+    </div>
+    <div class="ai-field-row">
+      <div class="ai-field">
+        <label for="aiDrillCat">Category</label>
+        <select id="aiDrillCat">
+          <option value="">Let it decide</option>
+        </select>
+      </div>
+      <div class="ai-field">
+        <label for="aiDrillDurInput">Length (min)</label>
+        <input type="number" id="aiDrillDurInput" min="1" step="1" value="10">
+      </div>
+    </div>
+
+    <button class="btn-secondary ai-generate-btn" id="aiDrillGenerateBtn"><svg class="icon"><use href="#i-sparkle"/></svg>Generate drill</button>
+
+    <div id="aiDrillLoading" style="display:none;">
+      <p class="ai-loading-text">Writing the drill and diagram…</p>
+    </div>
+
+    <div id="aiDrillError" class="ai-error" style="display:none;"></div>
+
+    <div id="aiDrillPreview" style="display:none;">
+      <div class="divider"></div>
+      <h4 class="detail-section-title" style="margin-top:0;" id="aiDrillPreviewName"></h4>
+      <p class="modal-sub" id="aiDrillPreviewMeta"></p>
+      <p class="detail-desc" id="aiDrillPreviewDesc"></p>
+      <div id="aiDrillDiagramSection" style="display:none;">
+        <h4 class="detail-section-title">Diagram</h4>
+        <div id="aiDrillDiagramWrap" class="drill-diagram-wrap"></div>
+        <div class="drill-diagram-legend">
+          <span><span class="legend-swatch" style="background:#4F01A3;"></span>Player</span>
+          <span><span class="legend-swatch" style="background:#7B5FC0;"></span>Movement</span>
+          <span><span class="legend-swatch" style="background:#BDEE49;"></span>Ball path</span>
+          <span><span class="legend-swatch" style="background:#FF6B6B;border-radius:2px;"></span>Cone</span>
+        </div>
+      </div>
+      <div class="footer-actions" style="margin-top:12px;">
+        <button class="btn-outline" id="aiDrillRetryBtn">Try again</button>
+        <button class="btn-primary" id="aiDrillUseBtn">Add to timeline</button>
       </div>
     </div>
   </div>
@@ -2368,6 +2426,134 @@ document.getElementById('aiUseBtn').addEventListener('click', async ()=>{
   currentTemplateSource = 'AI Plan Generator';
   renderTimeline();
   closeModal('aiModal');
+});
+
+/* ---------- AI drill generator ---------- */
+// Generates a single new drill (not a whole plan) from a coach's description —
+// name, category, duration, description, and an optional diagram, reusing the
+// same diagram renderer as the Drill Detail view. Calls the same /api/generate
+// proxy, so this needs ANTHROPIC_API_KEY set server-side to actually produce
+// anything; until then it fails the same graceful way the other AI features do.
+let aiGeneratedDrill = null;
+const aiDrillCatSel = document.getElementById('aiDrillCat');
+CATEGORIES.forEach(c=>{
+  const opt = document.createElement('option');
+  opt.value = c.key; opt.textContent = c.label;
+  aiDrillCatSel.appendChild(opt);
+});
+
+document.getElementById('openAiDrillBtn').addEventListener('click', ()=>{
+  document.getElementById('aiDrillFocusInput').value = '';
+  aiDrillCatSel.value = '';
+  document.getElementById('aiDrillDurInput').value = 10;
+  document.getElementById('aiDrillPreview').style.display = 'none';
+  document.getElementById('aiDrillError').style.display = 'none';
+  openModal('aiDrillModal');
+});
+
+async function generateAIDrill(){
+  const focus = document.getElementById('aiDrillFocusInput').value.trim();
+  if(!focus){ alert('Describe what you need the drill to accomplish first.'); return; }
+  const catHint = aiDrillCatSel.value;
+  const durHint = document.getElementById('aiDrillDurInput').value;
+  const division = document.getElementById('divisionSelect').value;
+
+  document.getElementById('aiDrillError').style.display = 'none';
+  document.getElementById('aiDrillPreview').style.display = 'none';
+  document.getElementById('aiDrillLoading').style.display = 'block';
+  document.getElementById('aiDrillGenerateBtn').disabled = true;
+
+  const systemPrompt = `You are a volleyball coaching assistant that invents a single new practice drill on request for a youth club team.
+
+Respond with ONLY valid JSON (no markdown code fences, no commentary before or after), exactly in this shape:
+{"name":"Drill Name","cat":"passing","dur":10,"desc":"one sentence description of what the drill is","setup":"1-2 sentences on how to set it up","howToRun":"2-3 sentences on how it runs step by step","coachingCues":["short cue 1","short cue 2"],"commonMistakes":["short mistake 1","short mistake 2"],"diagram":{"courtType":"half","players":[{"label":"S","x":50,"y":25}],"movements":[{"from":{"x":50,"y":25},"to":{"x":30,"y":20}}],"ballPath":[{"x":10,"y":80},{"x":50,"y":25}],"equipment":[{"x":20,"y":60}]}}
+
+Valid "cat" values: warmup, serving, passing, setting, hitting, blocking, digging, team, break.
+
+Diagram rules:
+- Coordinates are normalized 0-100 for both x and y.
+- "courtType":"half" means y=0 is the net/target line and y=100 is the endline — use this for most drills.
+- "courtType":"full" means y=50 is the net, one team above and one below — only for drills spanning both sides.
+- "players": short labels only (e.g. "S","OH1","1","L") — 2-8 players, positioned where they'd realistically start.
+- "movements": each is one player's path from a start to an end point — include only what matters, usually 1-4.
+- "ballPath": 2-4 ordered points tracing the ball's flight. Omit if there's no ball flight worth diagramming.
+- "equipment": cone/marker positions only, if used.
+- If a spatial diagram genuinely wouldn't help (pure conditioning, a discussion, a water break), omit "diagram" entirely.
+
+Keep everything concise and genuinely practical for a coach to glance at right before running it.`;
+
+  const userMessage = `What the coach needs: ${focus}\n${catHint ? `Preferred category: ${catHint}\n` : ''}Target duration: ${durHint} minutes\nDivision: ${division}`;
+
+  try{
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 1200,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }]
+      })
+    });
+    const data = await response.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const cleaned = textBlocks.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
+
+    const safeCat = VALID_CATS.includes(parsed.cat) ? parsed.cat : (catHint || 'team');
+    const safeDur = Math.max(1, parseInt(parsed.dur) || parseInt(durHint) || 10);
+    aiGeneratedDrill = {
+      name: parsed.name || 'Custom drill',
+      cat: safeCat,
+      dur: safeDur,
+      desc: parsed.desc || '',
+      setup: parsed.setup || '',
+      howToRun: parsed.howToRun || '',
+      coachingCues: parsed.coachingCues || [],
+      commonMistakes: parsed.commonMistakes || [],
+      diagram: parsed.diagram || null
+    };
+
+    document.getElementById('aiDrillPreviewName').textContent = aiGeneratedDrill.name;
+    document.getElementById('aiDrillPreviewMeta').textContent = `${catMap[safeCat] ? catMap[safeCat].label : safeCat} · ${safeDur} min`;
+    document.getElementById('aiDrillPreviewDesc').textContent = aiGeneratedDrill.desc;
+
+    const diagramSection = document.getElementById('aiDrillDiagramSection');
+    const diagramWrap = document.getElementById('aiDrillDiagramWrap');
+    const svg = renderDrillDiagramSVG(aiGeneratedDrill.diagram);
+    if(svg){
+      diagramWrap.innerHTML = svg;
+      diagramSection.style.display = 'block';
+    } else {
+      diagramSection.style.display = 'none';
+    }
+
+    // Pre-cache the coaching notes so opening "Generate detailed coaching notes"
+    // on this drill later (from the timeline) doesn't need a second AI call.
+    const cacheKey = aiGeneratedDrill.name + '|' + aiGeneratedDrill.desc;
+    drillDetailCache[cacheKey] = {
+      setup: aiGeneratedDrill.setup,
+      howToRun: aiGeneratedDrill.howToRun,
+      coachingCues: aiGeneratedDrill.coachingCues,
+      commonMistakes: aiGeneratedDrill.commonMistakes,
+      diagram: aiGeneratedDrill.diagram
+    };
+
+    document.getElementById('aiDrillPreview').style.display = 'block';
+  } catch(e){
+    console.error('AI drill generation failed', e);
+    document.getElementById('aiDrillError').textContent = "Couldn't generate a drill right now — check your connection and try again.";
+    document.getElementById('aiDrillError').style.display = 'block';
+  } finally {
+    document.getElementById('aiDrillLoading').style.display = 'none';
+    document.getElementById('aiDrillGenerateBtn').disabled = false;
+  }
+}
+document.getElementById('aiDrillGenerateBtn').addEventListener('click', generateAIDrill);
+document.getElementById('aiDrillRetryBtn').addEventListener('click', generateAIDrill);
+document.getElementById('aiDrillUseBtn').addEventListener('click', ()=>{
+  if(!aiGeneratedDrill) return;
+  addToPlan({name: aiGeneratedDrill.name, cat: aiGeneratedDrill.cat, dur: aiGeneratedDrill.dur, desc: aiGeneratedDrill.desc});
+  closeModal('aiDrillModal');
 });
 
 /* ---------- custom (user-saved) templates ---------- */
