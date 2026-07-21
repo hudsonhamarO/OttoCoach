@@ -716,7 +716,7 @@
     </div>
 
     <p class="auth-disclaimer">This is a lightweight sign-in to keep your plans organized under your name — not bank-grade security. Please don't reuse a sensitive password here.</p>
-    <button class="dev-bypass-btn" id="devBypassBtn" style="display:none;">⚡ Continue as Test Coach (skip sign-in)</button>
+    <button class="dev-bypass-btn" id="devBypassBtn">⚡ Continue as Guest (skip sign-in)</button>
   </div>
 </div>
 
@@ -1472,26 +1472,26 @@ document.getElementById('signUpFormEl').addEventListener('submit', async (e)=>{
   }
 });
 
-// Dev convenience: skip typing credentials every reload by signing into one
-// fixed test account (creating it the first time). Not for real use — just
-// for fast iteration while building. REMOVE THIS BUTTON before sharing the
-// app with anyone outside active development.
+// Guest entry: skip the sign-in form by signing into one shared account
+// (creating it the first time it's used). Anyone using this button lands
+// in the same shared "Guest" account — fine for casual/no-account access,
+// but they'll all see and edit the same saved plans/teams as each other.
 document.getElementById('devBypassBtn').addEventListener('click', async ()=>{
-  const DEV_EMAIL = 'test-coach@otto-coach.dev';
-  const DEV_PASS = 'devmode123';
+  const DEV_EMAIL = 'guest@otto-coach.dev';
+  const DEV_PASS = 'guestaccess123';
   let { data, error } = await sb.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASS });
   if(error){
     const signUpResult = await sb.auth.signUp({ email: DEV_EMAIL, password: DEV_PASS });
-    if(signUpResult.error){ alert('Dev bypass failed: ' + signUpResult.error.message); return; }
+    if(signUpResult.error){ alert('Guest sign-in failed: ' + signUpResult.error.message); return; }
     data = signUpResult.data;
     if(data.user){
-      await sb.from('profiles').insert({ id: data.user.id, name: 'Test Coach', role: 'coach' });
+      await sb.from('profiles').insert({ id: data.user.id, name: 'Guest', role: 'coach' });
     }
   }
   const { data: { user } } = await sb.auth.getUser();
-  if(!user){ alert('Dev bypass failed — check email confirmation settings in Supabase.'); return; }
+  if(!user){ alert('Guest sign-in failed — check email confirmation settings in Supabase.'); return; }
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
-  await logIntoAccount({ id: user.id, name: profile ? profile.name : 'Test Coach', email: DEV_EMAIL, role: profile ? profile.role : 'coach' });
+  await logIntoAccount({ id: user.id, name: profile ? profile.name : 'Guest', email: DEV_EMAIL, role: profile ? profile.role : 'coach' });
 });
 
 document.getElementById('signInFormEl').addEventListener('submit', async (e)=>{
@@ -3726,11 +3726,6 @@ function initGamedayView(hasInProgressMatch){
 
 /* ---------- init ---------- */
 (async function init(){
-  // Dev bypass only shows up with ?dev=1 in the URL — invisible by default so
-  // a public Vercel link doesn't hand out free access to anyone who finds it.
-  if(new URLSearchParams(window.location.search).get('dev') === '1'){
-    document.getElementById('devBypassBtn').style.display = 'block';
-  }
   // Settle Supabase's auth state before anything else — the client rehydrates
   // a persisted session asynchronously, and a query fired before that finishes
   // would go out unauthenticated even though a session actually exists.
