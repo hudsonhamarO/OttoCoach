@@ -875,6 +875,7 @@
 
     <p class="auth-disclaimer">This is a lightweight sign-in to keep your plans organized under your name — not bank-grade security. Please don't reuse a sensitive password here.</p>
     <button class="dev-bypass-btn" id="devBypassBtn">⚡ Continue as Guest (skip sign-in)</button>
+    <button class="dev-bypass-btn" id="devBypassDirectorBtn" style="margin-top:6px;">⚡ Continue as Guest Director (testing)</button>
       </div>
     </div>
   </div>
@@ -1780,6 +1781,27 @@ document.getElementById('devBypassBtn').addEventListener('click', async ()=>{
   if(!user){ alert('Guest sign-in failed — check email confirmation settings in Supabase.'); return; }
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
   await logIntoAccount({ id: user.id, name: profile ? profile.name : 'Guest', email: DEV_EMAIL, role: profile ? profile.role : 'coach' });
+});
+
+// TEMPORARY testing shortcut — a second shared guest account, signed in with the
+// director role so club-wide Dashboard features can be tested without setting up
+// a real director account. Remove this button + handler once testing is done.
+document.getElementById('devBypassDirectorBtn').addEventListener('click', async ()=>{
+  const DEV_EMAIL = 'guest-director@otto-coach.dev';
+  const DEV_PASS = 'guestaccess123';
+  let { data, error } = await sb.auth.signInWithPassword({ email: DEV_EMAIL, password: DEV_PASS });
+  if(error){
+    const signUpResult = await sb.auth.signUp({ email: DEV_EMAIL, password: DEV_PASS });
+    if(signUpResult.error){ alert('Guest director sign-in failed: ' + signUpResult.error.message); return; }
+    data = signUpResult.data;
+    if(data.user){
+      await sb.from('profiles').insert({ id: data.user.id, name: 'Guest Director', role: 'director' });
+    }
+  }
+  const { data: { user } } = await sb.auth.getUser();
+  if(!user){ alert('Guest director sign-in failed — check email confirmation settings in Supabase.'); return; }
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  await logIntoAccount({ id: user.id, name: profile ? profile.name : 'Guest Director', email: DEV_EMAIL, role: profile ? profile.role : 'director' });
 });
 
 document.getElementById('signInFormEl').addEventListener('submit', async (e)=>{
