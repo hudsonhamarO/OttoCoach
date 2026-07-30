@@ -343,27 +343,57 @@
   .pill:hover{border-color:var(--navy);color:var(--navy);}
   .pill.active{background:var(--navy);border-color:var(--navy);color:var(--white);box-shadow:0 2px 8px rgba(79,1,163,.25);}
 
-  .drill-list{display:flex;flex-direction:column;gap:9px;max-height:480px;overflow-y:auto;padding-right:4px;}
+  .drill-list{display:flex;flex-direction:column;gap:7px;max-height:480px;overflow-y:auto;padding-right:4px;}
   .drill-card{
-    display:flex;gap:12px;align-items:flex-start;
+    display:flex;gap:9px;align-items:center;cursor:grab;
     border:1px solid var(--line);border-left:4px solid var(--stone);
-    border-radius:10px;padding:11px 12px;background:var(--white);
-    transition:box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+    border-radius:10px;padding:9px 10px;background:var(--white);
+    transition:box-shadow .15s ease, transform .15s ease, border-color .15s ease, opacity .12s ease;
   }
   .drill-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:#D2CBE0;}
+  .drill-card:active{cursor:grabbing;}
+  .drill-card.dragging{opacity:.4;}
+  .drill-grip{flex-shrink:0;color:#C7C2D4;font-size:13px;line-height:1;letter-spacing:-1px;user-select:none;padding-top:1px;}
   .drill-info{flex:1;min-width:0;}
-  .drill-name{font-weight:600;font-size:14px;margin:0 0 3px;color:var(--navy);}
-  .drill-desc{font-size:12.5px;line-height:1.45;color:#565B66;margin:0 0 6px;}
-  .drill-tags{display:flex;gap:8px;align-items:center;}
-  .drill-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#767C88;}
+  .drill-name{
+    font-weight:600;font-size:13.5px;margin:0;color:var(--navy);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .drill-desc{display:none;}
+  .drill-tags{display:flex;gap:7px;align-items:center;margin-top:2px;}
+  .drill-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#767C88;}
+  .drill-tag.cat{
+    display:inline-flex;align-items:center;gap:4px;text-transform:none;
+  }
+  .drill-tag.cat::before{
+    content:'';width:6px;height:6px;border-radius:50%;background:var(--cat-color, #9A94A8);flex-shrink:0;
+  }
   .add-btn{
-    flex-shrink:0;width:34px;height:34px;border-radius:8px;border:none;
-    background:var(--gold);color:var(--navy);font-size:19px;font-weight:700;cursor:pointer;
+    flex-shrink:0;width:30px;height:30px;border-radius:8px;border:none;
+    background:var(--gold);color:var(--navy);font-size:17px;font-weight:700;cursor:pointer;
     line-height:1;display:flex;align-items:center;justify-content:center;transition:transform .12s ease;
   }
   .add-btn:hover{transform:scale(1.06);}
   .add-btn:active{transform:scale(.96);}
   .no-results{padding:20px 8px;text-align:center;color:#8B909B;font-size:13px;}
+
+  /* fit-to-time */
+  .fit-time-btn{
+    display:inline-flex;align-items:center;gap:5px;font-family:'Inter',sans-serif;
+    font-size:11.5px;font-weight:600;color:var(--navy);background:var(--white);
+    border:1.5px solid var(--line);border-radius:999px;padding:4px 10px 4px 8px;cursor:pointer;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .fit-time-btn:hover{border-color:var(--navy);background:#F4F1FB;}
+  .fit-time-btn:active{transform:scale(.97);}
+  .fit-msg{
+    font-family:'Inter',sans-serif;font-size:12px;font-weight:600;margin-top:8px;
+    padding:7px 10px;border-radius:7px;display:none;
+  }
+  .fit-msg.show{display:block;animation:overlayIn .15s ease;}
+  .fit-msg.ok{background:#EAF7EE;color:#1E7A45;}
+  .fit-msg.warn{background:#FFF7E3;color:#8A6A00;}
+  .fit-msg.error{background:#FBE4DD;color:#C1502E;}
 
   .custom-form{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
   .custom-form-row{display:flex;gap:8px;margin-bottom:8px;}
@@ -381,10 +411,15 @@
   }
   .btn-secondary:hover{background:var(--navy);color:var(--white);box-shadow:var(--shadow-sm);}
 
-  .timeline{display:flex;flex-direction:column;gap:8px;min-height:120px;}
-  .empty-state{border:2px dashed var(--line);border-radius:10px;padding:28px 16px;text-align:center;color:#8B909B;font-size:13.5px;}
-  .block{display:flex;gap:12px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;align-items:flex-start;background:var(--white);transition:box-shadow .15s ease, border-color .15s ease;}
+  .timeline{display:flex;flex-direction:column;gap:8px;min-height:120px;position:relative;}
+  .timeline.drop-active{background:rgba(79,1,163,.03);border-radius:10px;}
+  .empty-state{border:2px dashed var(--line);border-radius:10px;padding:28px 16px;text-align:center;color:#8B909B;font-size:13.5px;transition:border-color .15s ease, background .15s ease;}
+  .empty-state.drop-active{border-color:var(--navy);background:#F4F1FB;}
+  .block{display:flex;gap:12px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;align-items:flex-start;background:var(--white);transition:box-shadow .15s ease, border-color .15s ease, opacity .12s ease;cursor:grab;}
   .block:hover{box-shadow:var(--shadow-sm);border-color:#D2CBE0;}
+  .block:active{cursor:grabbing;}
+  .block.dragging{opacity:.35;}
+  .drop-indicator{height:3px;border-radius:2px;background:var(--gold);margin:-4px 0;box-shadow:0 0 0 3px rgba(189,238,73,.25);}
   .block-time{
     font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--navy);
     white-space:nowrap;padding-top:2px;width:82px;flex-shrink:0;
@@ -416,7 +451,7 @@
   .brand-tagline{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#9A8FB0;margin:22px 0 0;letter-spacing:.01em;}
 
   /* modals */
-  .modal-overlay{position:fixed;inset:0;background:rgba(20,10,35,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px;animation:overlayIn .16s ease;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,10,35,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:450;padding:20px;animation:overlayIn .16s ease;}
   .modal{background:var(--white);border-radius:18px;max-width:580px;width:100%;max-height:82vh;overflow-y:auto;padding:22px 24px 24px;box-shadow:0 24px 60px rgba(20,5,45,.28), var(--shadow-lg);animation:modalIn .2s cubic-bezier(.2,.9,.3,1.1);}
   @keyframes overlayIn{from{opacity:0;}to{opacity:1;}}
   @keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -566,7 +601,7 @@
 
   /* practice mode */
   .pm-overlay{
-    position:fixed;inset:0;z-index:100;display:none;
+    position:fixed;inset:0;z-index:460;display:none;
     background:linear-gradient(160deg,var(--navy),var(--purple-deep));
     color:var(--white);flex-direction:column;align-items:center;justify-content:center;padding:30px;
   }
@@ -701,7 +736,7 @@
   #gamedayViewContent .stat-table td{text-align:center;padding:7px 4px;border-bottom:1px solid var(--line);color:var(--charcoal);}
   #gamedayViewContent .stat-table td:first-child{text-align:left;font-weight:600;color:var(--navy);}
   #gamedayViewContent .stat-empty{padding:14px 4px;color:#8B909B;font-size:12.5px;text-align:center;}
-  #gamedayViewContent .modal-overlay{position:fixed;inset:0;background:rgba(20,10,35,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:60;padding:16px;animation:overlayIn .16s ease;}
+  #gamedayViewContent .modal-overlay{position:fixed;inset:0;background:rgba(20,10,35,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:450;padding:16px;animation:overlayIn .16s ease;}
   #gamedayViewContent .modal{background:var(--white);border-radius:18px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;padding:20px 22px 22px;box-shadow:0 24px 60px rgba(20,5,45,.28), var(--shadow-lg);animation:modalIn .2s cubic-bezier(.2,.9,.3,1.1);}
   #gamedayViewContent .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   #gamedayViewContent .modal-title{font-family:'Oswald',sans-serif;font-weight:600;font-size:17px;color:var(--purple-deep);text-transform:none;margin:0;}
@@ -900,6 +935,13 @@
       <p class="eyebrow" id="sportEyebrow">Volleyball · Practice Planning &amp; Game Day</p>
       <h1 class="title" id="mainTitle">Practice Plan Builder</h1>
     </div>
+  </div>
+  <div id="planBuilderBackdrop"></div>
+  <div id="practiceBuilderPanel">
+    <div class="drawer-bar">
+      <span class="drawer-bar-title" id="drawerBarTitle">Editing practice</span>
+      <button class="drawer-back-btn" id="drawerBackBtn"><svg class="icon"><use href="#i-undo"/></svg>Back to Dashboard</button>
+    </div>
     <div class="meta-row" id="coachMetaRow">
       <div class="meta-group">
         <div class="meta-field"><label for="teamName">Team</label>
@@ -919,20 +961,21 @@
         <div class="meta-field"><label for="targetLen">Target length (min)</label><input id="targetLen" type="number" value="90" min="15" step="5"></div>
       </div>
     </div>
-  </div>
-  <div id="planBuilderBackdrop"></div>
-  <div id="practiceBuilderPanel">
-    <div class="drawer-bar">
-      <span class="drawer-bar-title" id="drawerBarTitle">Editing practice</span>
-      <button class="drawer-back-btn" id="drawerBackBtn"><svg class="icon"><use href="#i-undo"/></svg>Back to Dashboard</button>
-    </div>
+
     <div class="allocation" id="coachAllocation">
       <div class="allocation-top">
         <span class="allocation-label">Time allocated</span>
-        <span class="allocation-count" id="allocCount">0 / 90 min</span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <span class="allocation-count" id="allocCount">0 / 90 min</span>
+          <button class="fit-time-btn" id="fitTimeBtn" type="button" title="Automatically stretch or trim drills to match your target practice length">
+            <svg class="icon" style="width:13px;height:13px;"><use href="#i-refresh"/></svg>
+            Fit to time
+          </button>
+        </span>
       </div>
       <div class="bar-track" id="barTrack"></div>
       <div class="legend" id="legend"></div>
+      <div class="fit-msg" id="fitMsg"></div>
     </div>
 
   <div id="coachViewContent">
@@ -2084,14 +2127,15 @@ function renderDrills(){
   items.forEach(d=>{
     const card = document.createElement('div');
     card.className = 'drill-card';
+    card.draggable = true;
+    card.title = d.desc || '';
     card.style.borderLeftColor = catMap[d.cat].color;
     card.innerHTML = `
+      <span class="drill-grip">⠿</span>
       <div class="drill-info">
         <p class="drill-name">${d.name}</p>
-        <p class="drill-desc">${d.desc}</p>
         <div class="drill-tags">
-          <span class="drill-tag">${catMap[d.cat].label}</span>
-          <span class="drill-tag">·</span>
+          <span class="drill-tag cat" style="--cat-color:${catMap[d.cat].color}">${catMap[d.cat].label}</span>
           <span class="drill-tag">${d.dur} min</span>
         </div>
       </div>
@@ -2102,6 +2146,12 @@ function renderDrills(){
     btn.title = 'Add to plan';
     btn.onclick = ()=> addToPlan({name:d.name, cat:d.cat, dur:d.dur, desc:d.desc});
     card.appendChild(btn);
+    card.addEventListener('dragstart', (e)=>{
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('application/json', JSON.stringify({source:'library', name:d.name, cat:d.cat, dur:d.dur, desc:d.desc||''}));
+    });
+    card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
     drillListEl.appendChild(card);
   });
 }
@@ -2111,8 +2161,10 @@ document.getElementById('drillSearch').addEventListener('input', e=>{
 });
 
 /* ---------- plan / timeline ---------- */
-function addToPlan(item){
-  plan.push({uid: uidCounter++, name:item.name, cat:item.cat, dur:item.dur, note:'', desc:item.desc||''});
+function addToPlan(item, index){
+  const entry = {uid: uidCounter++, name:item.name, cat:item.cat, dur:item.dur, note:'', desc:item.desc||''};
+  if(index===undefined || index===null || index>=plan.length){ plan.push(entry); }
+  else { plan.splice(Math.max(0,index), 0, entry); }
   renderTimeline();
 }
 function removeFromPlan(uid){ plan = plan.filter(p=>p.uid!==uid); renderTimeline(); }
@@ -2121,6 +2173,15 @@ function moveItem(uid, dir){
   const j = i+dir;
   if(j<0 || j>=plan.length) return;
   [plan[i],plan[j]] = [plan[j],plan[i]];
+  renderTimeline();
+}
+function reorderPlan(uid, targetIndex){
+  const i = plan.findIndex(p=>p.uid===uid);
+  if(i<0) return;
+  const [item] = plan.splice(i,1);
+  let idx = targetIndex;
+  if(i < targetIndex) idx -= 1;
+  plan.splice(Math.max(0, Math.min(idx, plan.length)), 0, item);
   renderTimeline();
 }
 function updateDuration(uid, val){
@@ -2171,7 +2232,10 @@ function renderTimeline(){
       const catInfo = catMap[p.cat] || ALL_CATEGORIES_MAP[p.cat] || {label: p.cat, color: '#9A94A8'};
       const row = document.createElement('div');
       row.className = 'block';
+      row.draggable = true;
+      row.dataset.uid = p.uid;
       row.innerHTML = `
+        <span class="drill-grip" title="Drag to reorder">⠿</span>
         <div class="block-time">${startLabel}<br>${endLabel}</div>
         <div class="block-stripe" style="background:${catInfo.color}"></div>
         <div class="block-body">
@@ -2195,11 +2259,68 @@ function renderTimeline(){
       buttons[0].addEventListener('click', ()=>moveItem(p.uid,-1));
       buttons[1].addEventListener('click', ()=>moveItem(p.uid,1));
       buttons[2].addEventListener('click', ()=>removeFromPlan(p.uid));
+      row.addEventListener('dragstart', (e)=>{
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('application/json', JSON.stringify({source:'reorder', uid:p.uid}));
+      });
+      row.addEventListener('dragend', ()=> row.classList.remove('dragging'));
       timelineEl.appendChild(row);
     });
   }
   renderAllocation();
 }
+
+/* ---------- drag-and-drop into timeline ---------- */
+let dropIndicatorEl = null;
+function clearDropIndicator(){
+  if(dropIndicatorEl && dropIndicatorEl.parentNode) dropIndicatorEl.remove();
+  dropIndicatorEl = null;
+}
+function getDropIndex(clientY){
+  const blocks = [...timelineEl.querySelectorAll('.block:not(.dragging)')];
+  for(let i=0;i<blocks.length;i++){
+    const rect = blocks[i].getBoundingClientRect();
+    if(clientY < rect.top + rect.height/2) return i;
+  }
+  return blocks.length;
+}
+timelineEl.addEventListener('dragover', (e)=>{
+  e.preventDefault();
+  timelineEl.classList.add('drop-active');
+  const emptyState = timelineEl.querySelector('.empty-state');
+  if(emptyState) emptyState.classList.add('drop-active');
+  if(plan.length===0) return;
+  const idx = getDropIndex(e.clientY);
+  clearDropIndicator();
+  dropIndicatorEl = document.createElement('div');
+  dropIndicatorEl.className = 'drop-indicator';
+  const blocks = [...timelineEl.querySelectorAll('.block:not(.dragging)')];
+  if(idx>=blocks.length){ timelineEl.appendChild(dropIndicatorEl); }
+  else { timelineEl.insertBefore(dropIndicatorEl, blocks[idx]); }
+});
+timelineEl.addEventListener('dragleave', (e)=>{
+  if(!timelineEl.contains(e.relatedTarget)){
+    timelineEl.classList.remove('drop-active');
+    const emptyState = timelineEl.querySelector('.empty-state');
+    if(emptyState) emptyState.classList.remove('drop-active');
+    clearDropIndicator();
+  }
+});
+timelineEl.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  timelineEl.classList.remove('drop-active');
+  const idx = plan.length===0 ? 0 : getDropIndex(e.clientY);
+  clearDropIndicator();
+  let payload;
+  try{ payload = JSON.parse(e.dataTransfer.getData('application/json')); }catch(err){ return; }
+  if(!payload) return;
+  if(payload.source === 'library'){
+    addToPlan({name:payload.name, cat:payload.cat, dur:payload.dur, desc:payload.desc}, idx);
+  } else if(payload.source === 'reorder'){
+    reorderPlan(payload.uid, idx);
+  }
+});
 
 /* ---------- allocation bar ---------- */
 const barTrackEl = document.getElementById('barTrack');
@@ -2245,6 +2366,68 @@ function renderAllocation(){
 }
 document.getElementById('targetLen').addEventListener('input', renderAllocation);
 document.getElementById('startTime').addEventListener('input', renderTimeline);
+
+/* ---------- fit to time ---------- */
+let fitMsgTimeout = null;
+function showFitMessage(text, type){
+  const el = document.getElementById('fitMsg');
+  el.textContent = text;
+  el.className = 'fit-msg show ' + type;
+  clearTimeout(fitMsgTimeout);
+  fitMsgTimeout = setTimeout(()=>{ el.classList.remove('show'); }, 5000);
+}
+function autoFitPlanToTime(){
+  const target = Math.max(1, parseInt(document.getElementById('targetLen').value)||90);
+  if(plan.length===0){
+    showFitMessage('Add a few drills first, then use Fit to time.', 'warn');
+    return;
+  }
+  const sum = plan.reduce((a,p)=>a+p.dur,0);
+  const diff = target - sum; // positive: plan is short, negative: plan is over
+  if(diff === 0){
+    showFitMessage('Your plan already matches the target time.', 'ok');
+    return;
+  }
+  const MIN_DUR = 3;
+  const maxAdjust = Math.max(15, Math.round(target*0.25));
+  if(Math.abs(diff) > maxAdjust){
+    const msg = diff < 0
+      ? `Your plan is ${Math.abs(diff)} min over the ${target} min target — that's too much to auto-fit. Try removing a drill or two, then fit again.`
+      : `Your plan is ${Math.abs(diff)} min under the ${target} min target — that's too much to auto-fit. Try adding a drill or two, then fit again.`;
+    showFitMessage(msg, 'error');
+    return;
+  }
+  // Which items can absorb the change: when shrinking, skip items already at the floor.
+  const adjustable = diff < 0 ? plan.filter(p=>p.dur > MIN_DUR) : plan.slice();
+  if(adjustable.length===0){
+    showFitMessage('Drills are already as short as they can go — remove one to fit the target.', 'error');
+    return;
+  }
+  const totalAdjustableDur = adjustable.reduce((a,p)=>a+p.dur,0);
+  let remaining = diff;
+  adjustable.forEach((p,i)=>{
+    let share;
+    if(i === adjustable.length-1){
+      share = remaining;
+    } else {
+      share = Math.round(diff * (p.dur/totalAdjustableDur));
+      remaining -= share;
+    }
+    let newDur = p.dur + share;
+    if(newDur < MIN_DUR) newDur = MIN_DUR;
+    p.dur = newDur;
+  });
+  // Rounding can leave a 1-2 min residual — nudge the longest drill to land exactly on target.
+  let residual = target - plan.reduce((a,p)=>a+p.dur,0);
+  if(residual !== 0){
+    const longest = plan.reduce((a,b)=> b.dur>a.dur?b:a, plan[0]);
+    longest.dur = Math.max(MIN_DUR, longest.dur + residual);
+  }
+  renderTimeline();
+  const verb = diff>0 ? 'Stretched' : 'Trimmed';
+  showFitMessage(`${verb} ${adjustable.length} drill${adjustable.length===1?'':'s'} to fill your ${target} min practice.`, 'ok');
+}
+document.getElementById('fitTimeBtn').addEventListener('click', autoFitPlanToTime);
 
 /* ---------- custom drill ---------- */
 document.getElementById('addCustomBtn').addEventListener('click', ()=>{
