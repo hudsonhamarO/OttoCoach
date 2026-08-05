@@ -186,19 +186,50 @@
   .club-team-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
   .director-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
 
-  .club-team-card{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;transition:box-shadow .15s ease, border-color .15s ease, background .15s ease;}
-  .club-team-card.drag-over{border-color:var(--gold);background:#FBFFEE;box-shadow:var(--shadow-md);}
+  /* dashboard hero banner */
+  .dashboard-hero{
+    position:relative;overflow:hidden;border-radius:16px;padding:22px 26px;margin-bottom:18px;
+    background:linear-gradient(120deg, var(--navy) 0%, var(--purple-deep) 45%, #1F8A8A 85%, var(--teal) 100%);
+    color:var(--white);box-shadow:0 10px 28px rgba(79,1,163,.28);
+  }
+  .dashboard-hero::before, .dashboard-hero::after{
+    content:'';position:absolute;border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.22), rgba(255,255,255,0) 70%);
+  }
+  .dashboard-hero::before{width:220px;height:220px;top:-90px;right:-60px;}
+  .dashboard-hero::after{width:140px;height:140px;bottom:-70px;right:120px;background:radial-gradient(circle, rgba(189,238,73,.28), rgba(189,238,73,0) 70%);}
+  .dashboard-hero-title{font-family:'Oswald',sans-serif;font-weight:600;font-size:22px;margin:0 0 4px;position:relative;}
+  .dashboard-hero-sub{font-size:13.5px;color:rgba(255,255,255,.88);margin:0;position:relative;max-width:520px;}
+  .dashboard-hero-stats{display:flex;gap:22px;margin-top:14px;position:relative;flex-wrap:wrap;}
+  .dashboard-hero-stat{display:flex;flex-direction:column;}
+  .dashboard-hero-stat .num{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:20px;color:var(--gold);}
+  .dashboard-hero-stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.75);}
+
+  .team-avatar{
+    flex-shrink:0;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    color:var(--white);font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;
+    box-shadow:0 3px 8px rgba(20,5,45,.25);
+  }
+  .club-team-card-main{display:flex;align-items:center;gap:12px;min-width:0;}
+
+  .club-team-card{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;margin-bottom:8px;
+    transition:box-shadow .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .club-team-card:hover{box-shadow:var(--shadow-md);border-color:#D2CBE0;transform:translateY(-2px);}
+  .club-team-card.drag-over{border-color:var(--gold);background:#FBFFEE;box-shadow:0 0 0 3px rgba(189,238,73,.3);}
   .director-template-card{
-    border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;
-    cursor:grab;background:var(--white);transition:box-shadow .15s ease, opacity .15s ease;
+    position:relative;display:flex;align-items:flex-start;gap:10px;
+    border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:10px 12px;margin-bottom:8px;
+    cursor:grab;background:var(--white);transition:box-shadow .18s ease, opacity .15s ease, transform .18s ease;
   }
   .director-template-card:active{cursor:grabbing;}
   .director-template-card.dragging{opacity:.4;}
-  .director-template-card:hover{box-shadow:var(--shadow-md);border-color:#D2CBE0;}
+  .director-template-card:hover{box-shadow:var(--shadow-md);border-color:#D2CBE0;transform:translateY(-2px) rotate(-.3deg);}
   .director-template-card .name{font-weight:700;color:var(--navy);font-size:13.5px;margin:0 0 2px;}
   .director-template-card .meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#767C88;}
   .director-template-card .drag-hint{font-size:9.5px;color:#B2AEC0;margin-top:4px;}
-  .club-team-card:hover{box-shadow:var(--shadow-md);border-color:#D2CBE0;}
   .club-team-name{font-weight:700;color:var(--navy);font-size:14.5px;margin:0 0 2px;}
   .club-team-meta{font-size:11.5px;color:#767C88;font-family:'IBM Plex Mono',monospace;}
   .club-team-plan-status{font-size:12px;color:#565B66;text-align:right;}
@@ -1033,6 +1064,15 @@
   </div>
 
   <div id="directorViewContent" style="display:none;">
+    <div class="dashboard-hero">
+      <h2 class="dashboard-hero-title" id="dashboardHeroGreeting">Hey there!</h2>
+      <p class="dashboard-hero-sub" id="dashboardHeroSub">Let's make today's practice a great one.</p>
+      <div class="dashboard-hero-stats">
+        <div class="dashboard-hero-stat"><span class="num" id="dashboardHeroTeamCount">0</span><span class="label">Teams</span></div>
+        <div class="dashboard-hero-stat"><span class="num" id="dashboardHeroUpcomingCount">0</span><span class="label">Upcoming this week</span></div>
+        <div class="dashboard-hero-stat"><span class="num" id="dashboardHeroPlanCount">0</span><span class="label">Plans saved</span></div>
+      </div>
+    </div>
     <div class="panel">
       <div class="director-header">
         <div>
@@ -3913,13 +3953,18 @@ async function renderDirectorTemplates(){
     cards.push({ ref:{type:'custom', id:t.id}, name:t.name, meta:`${t.drillCount} drills · ${t.totalMin} min` });
   });
 
-  listEl.innerHTML = cards.map(c=>`
-    <div class="director-template-card" draggable="true" data-ref='${JSON.stringify(c.ref)}'>
-      <p class="name">${c.name}</p>
-      <p class="meta">${c.meta}</p>
-      <p class="drag-hint">Drag onto a team →</p>
+  const TEMPLATE_ACCENTS = ['#4F01A3', '#0F766E', '#B45309', '#2B6CB0', '#9F1239', '#7C3AED'];
+  listEl.innerHTML = cards.map((c,i)=>{
+    const accentColor = TEMPLATE_ACCENTS[i % TEMPLATE_ACCENTS.length];
+    return `
+    <div class="director-template-card" draggable="true" data-ref='${JSON.stringify(c.ref)}' style="border-left-color:${accentColor};">
+      <div>
+        <p class="name">${c.name}</p>
+        <p class="meta">${c.meta}</p>
+        <p class="drag-hint">Drag onto a team →</p>
+      </div>
     </div>
-  `).join('');
+  `;}).join('');
 
   listEl.querySelectorAll('.director-template-card').forEach(card=>{
     card.addEventListener('dragstart', (e)=>{
@@ -3973,10 +4018,20 @@ async function renderDirectorDashboard(){
   const clubCatTotals = {};
   const cards = [];
   const dashboardTeams = getDashboardTeams();
+  let totalPlansSaved = 0;
+  let upcomingThisWeek = 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekFromNow = new Date(today); weekFromNow.setDate(weekFromNow.getDate()+7);
 
   for(const team of dashboardTeams){
     const idx = await getPlanIndex(team.id);
     const latest = idx[0]; // most recent, since saves are unshifted
+    totalPlansSaved += idx.length;
+    idx.forEach(entry=>{
+      if(!entry.date) return;
+      const d = new Date(entry.date+'T00:00:00');
+      if(d >= today && d < weekFromNow) upcomingThisWeek++;
+    });
     if(latest && latest.catTotals){
       Object.entries(latest.catTotals).forEach(([cat,min])=>{
         clubCatTotals[cat] = (clubCatTotals[cat]||0) + min;
@@ -3985,11 +4040,16 @@ async function renderDirectorDashboard(){
     const statusHtml = latest
       ? `<div class="club-team-plan-status">Last plan: ${new Date(latest.savedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}<br>${latest.drillCount} drills · ${latest.totalMin} min</div>`
       : `<div class="club-team-plan-status none">No plans saved yet</div>`;
+    const teamColor = getTeamColor(team.id);
+    const initials = team.name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
     cards.push(`
-      <div class="club-team-card" data-team-id="${team.id}">
-        <div>
-          <p class="club-team-name">${team.name}</p>
-          <p class="club-team-meta">${SPORTS[getTeamSport(team)].label} · ${team.ageGroup} · ${team.division} · Coach: ${team.coachName || '(unassigned)'}</p>
+      <div class="club-team-card" data-team-id="${team.id}" style="border-left-color:${teamColor};">
+        <div class="club-team-card-main">
+          <div class="team-avatar" style="background:${teamColor};">${initials}</div>
+          <div>
+            <p class="club-team-name">${team.name}</p>
+            <p class="club-team-meta">${SPORTS[getTeamSport(team)].label} · ${team.ageGroup} · ${team.division} · Coach: ${team.coachName || '(unassigned)'}</p>
+          </div>
         </div>
         <div class="club-team-right">
           ${statusHtml}
@@ -4044,6 +4104,23 @@ async function renderDirectorDashboard(){
       }
     });
   }
+
+  updateDashboardHero(dashboardTeams.length, upcomingThisWeek, totalPlansSaved);
+}
+
+/* ---------- dashboard hero banner ---------- */
+function updateDashboardHero(teamCount, upcomingCount, plansSavedCount){
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const name = (currentAccount && currentAccount.name) ? currentAccount.name.split(' ')[0] : '';
+  const director = isDirector();
+  document.getElementById('dashboardHeroGreeting').textContent = `${timeGreeting}${name ? ', ' + name : ''}!`;
+  document.getElementById('dashboardHeroSub').textContent = director
+    ? "Here's how the whole club is shaping up — drag a template onto a team or peek at the calendar to plan ahead."
+    : "Here's what's on deck for your team this week.";
+  document.getElementById('dashboardHeroTeamCount').textContent = teamCount;
+  document.getElementById('dashboardHeroUpcomingCount').textContent = upcomingCount;
+  document.getElementById('dashboardHeroPlanCount').textContent = plansSavedCount;
 }
 
 /* ---------- manage teams ---------- */
