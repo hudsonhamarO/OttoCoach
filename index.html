@@ -632,7 +632,7 @@
 
   /* practice mode */
   .pm-overlay{
-    position:fixed;inset:0;z-index:460;display:none;
+    position:fixed;inset:0;z-index:460;display:none;overflow-y:auto;
     background:linear-gradient(160deg,var(--navy),var(--purple-deep));
     color:var(--white);flex-direction:column;align-items:center;justify-content:center;padding:30px;
   }
@@ -641,7 +641,27 @@
   .pm-progress{font-family:'IBM Plex Mono',monospace;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;font-size:12px;margin-bottom:16px;}
   .pm-cat-tag{display:inline-block;padding:5px 14px;border-radius:999px;font-family:'Oswald',sans-serif;font-weight:600;font-size:12px;color:var(--purple-deep);margin-bottom:18px;text-transform:uppercase;}
   .pm-drill-name{font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(24px,5vw,42px);text-align:center;max-width:720px;text-transform:uppercase;margin:0 0 12px;line-height:1.15;}
+  .pm-desc{font-size:14.5px;color:rgba(255,255,255,.82);margin:0 0 10px;text-align:center;max-width:560px;line-height:1.5;}
   .pm-note{font-size:14px;color:#E6D9F5;margin:0 0 22px;text-align:center;max-width:520px;}
+  .pm-notes-toggle{
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:var(--white);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:9px 18px;border-radius:999px;
+    cursor:pointer;margin-bottom:18px;
+  }
+  .pm-notes-toggle:hover{background:rgba(255,255,255,.18);}
+  .pm-notes-panel{
+    width:min(560px,100%);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+    border-radius:14px;padding:18px 20px;margin-bottom:22px;text-align:left;
+  }
+  .pm-notes-panel h4{font-family:'Oswald',sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin:14px 0 5px;}
+  .pm-notes-panel h4:first-child{margin-top:0;}
+  .pm-notes-panel p, .pm-notes-panel li{font-size:13.5px;color:rgba(255,255,255,.9);line-height:1.5;}
+  .pm-notes-panel ul{margin:0 0 4px;padding-left:18px;}
+  .pm-notes-panel #pmNotesEmpty{text-align:center;}
+  .pm-notes-panel #pmNotesEmpty p{color:rgba(255,255,255,.65);margin-bottom:12px;}
+  .pm-notes-panel #pmNotesEmpty .pm-btn-primary{width:auto;}
+  #pmNotesError{color:#FFB4B4;}
+  #pmNotesDiagramWrap{margin-top:10px;border-radius:10px;overflow:hidden;}
   .pm-timer{font-family:'IBM Plex Mono',monospace;font-size:clamp(56px,13vw,100px);font-weight:600;letter-spacing:.02em;margin-bottom:18px;}
   .pm-bar-track{width:min(420px,80vw);height:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden;margin-bottom:28px;}
   .pm-bar-fill{height:100%;background:var(--gold);width:0%;transition:width 1s linear;}
@@ -1636,6 +1656,7 @@
     <p class="pm-progress" id="pmProgress">Drill 1 of 1</p>
     <span class="pm-cat-tag" id="pmCatTag"></span>
     <h2 class="pm-drill-name" id="pmDrillName"></h2>
+    <p class="pm-desc" id="pmDesc"></p>
     <p class="pm-note" id="pmNote"></p>
     <div class="pm-timer" id="pmTimer">0:00</div>
     <div class="pm-bar-track"><div class="pm-bar-fill" id="pmBarFill"></div></div>
@@ -1645,6 +1666,27 @@
       <button class="pm-btn-secondary" id="pmNextBtn">Next ⏭</button>
     </div>
     <p class="pm-next-up" id="pmNextUp"></p>
+
+    <button class="pm-notes-toggle" id="pmNotesToggleBtn">📋 Coaching notes</button>
+    <div class="pm-notes-panel" id="pmNotesPanel" style="display:none;">
+      <p id="pmNotesLoading" style="display:none;">Generating coaching notes…</p>
+      <div id="pmNotesEmpty" style="display:none;">
+        <p>No coaching notes generated for this drill yet.</p>
+        <button class="pm-btn-primary" id="pmGenerateNotesBtn">+ Generate coaching notes</button>
+      </div>
+      <p id="pmNotesError" style="display:none;"></p>
+      <div id="pmNotesContent" style="display:none;">
+        <h4>Setup</h4>
+        <p id="pmNotesSetup"></p>
+        <h4>How to run it</h4>
+        <p id="pmNotesHowTo"></p>
+        <h4>Coaching cues</h4>
+        <ul id="pmNotesCues"></ul>
+        <h4>Common mistakes</h4>
+        <ul id="pmNotesMistakes"></ul>
+        <div id="pmNotesDiagramWrap"></div>
+      </div>
+    </div>
   </div>
 
   <div class="pm-complete" id="pmCompleteView">
@@ -2902,17 +2944,10 @@ function renderDrillDetail(detail){
   }
 }
 
-async function generateDrillDetail(){
-  if(!currentDetailDrill) return;
-  const p = currentDetailDrill;
-  const cacheKey = p.name + '|' + (p.desc||'');
-  const division = document.getElementById('divisionSelect').value;
-
-  document.getElementById('detailError').style.display = 'none';
-  document.getElementById('detailInitial').style.display = 'none';
-  document.getElementById('detailContent').style.display = 'none';
-  document.getElementById('detailLoading').style.display = 'block';
-
+// Shared by the Drill Detail modal and the in-Practice-Mode notes panel, so
+// both surfaces generate/cache coaching notes the same way instead of forking
+// the prompt or the parsing logic.
+async function fetchDrillDetailData(p, division){
   const sport = SPORTS[currentSportKey];
   const systemPrompt = `You are a ${sport.aiSportLabel} coaching assistant. Given a drill's name and short description, write detailed, practical coaching notes a coach could use to actually run and explain this drill to youth players, AND (when it genuinely helps) a spatial ${sport.aiCourtWord} diagram showing player positions and movement.
 
@@ -2947,17 +2982,34 @@ Keep everything concise and genuinely practical — the kind of thing a coach co
     const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
     const cleaned = textBlocks.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
-
-    drillDetailCache[cacheKey] = parsed;
-    renderDrillDetail(parsed);
-    document.getElementById('detailContent').style.display = 'block';
+    return {ok:true, data:parsed};
   } catch(e){
     console.error('Drill detail generation failed', e);
-    document.getElementById('detailError').textContent = "Couldn't generate coaching notes right now — check your connection and try again.";
+    return {ok:false, error:"Couldn't generate coaching notes right now — check your connection and try again."};
+  }
+}
+
+async function generateDrillDetail(){
+  if(!currentDetailDrill) return;
+  const p = currentDetailDrill;
+  const cacheKey = p.name + '|' + (p.desc||'');
+  const division = document.getElementById('divisionSelect').value;
+
+  document.getElementById('detailError').style.display = 'none';
+  document.getElementById('detailInitial').style.display = 'none';
+  document.getElementById('detailContent').style.display = 'none';
+  document.getElementById('detailLoading').style.display = 'block';
+
+  const result = await fetchDrillDetailData(p, division);
+  document.getElementById('detailLoading').style.display = 'none';
+  if(result.ok){
+    drillDetailCache[cacheKey] = result.data;
+    renderDrillDetail(result.data);
+    document.getElementById('detailContent').style.display = 'block';
+  } else {
+    document.getElementById('detailError').textContent = result.error;
     document.getElementById('detailError').style.display = 'block';
     document.getElementById('detailInitial').style.display = 'block';
-  } finally {
-    document.getElementById('detailLoading').style.display = 'none';
   }
 }
 document.getElementById('generateDetailBtn').addEventListener('click', generateDrillDetail);
@@ -3464,6 +3516,8 @@ function loadPmDrill(){
   pmSeconds = item.dur*60;
   pmPaused = false;
   renderPmView();
+  document.getElementById('pmNotesPanel').style.display = 'none';
+  document.getElementById('pmNotesError').style.display = 'none';
   pmTimerId = setInterval(pmTick, 1000);
 }
 function pmTick(){
@@ -3486,6 +3540,9 @@ function renderPmView(){
   tag.textContent = catInfo.label;
   tag.style.background = catInfo.color;
   document.getElementById('pmDrillName').textContent = item.name;
+  const descEl = document.getElementById('pmDesc');
+  descEl.textContent = item.desc || '';
+  descEl.style.display = item.desc ? 'block' : 'none';
   const noteEl = document.getElementById('pmNote');
   noteEl.textContent = item.note ? `Note: ${item.note}` : '';
   noteEl.style.display = item.note ? 'block' : 'none';
@@ -3518,6 +3575,56 @@ document.getElementById('pmRestartBtn').addEventListener('click', ()=>{
   document.getElementById('pmMain').style.display='flex';
   pmIndex = 0;
   loadPmDrill();
+});
+
+// In-practice coaching notes panel: reuses the same cache and generation call
+// as the Drill Detail modal (fetchDrillDetailData) so a coach never has to
+// leave the live timer to see how to actually run the drill they're on.
+function renderPmNotesContent(detail){
+  document.getElementById('pmNotesSetup').textContent = detail.setup || '';
+  document.getElementById('pmNotesHowTo').textContent = detail.howToRun || '';
+  document.getElementById('pmNotesCues').innerHTML = (detail.coachingCues||[]).map(c=>`<li>${c}</li>`).join('');
+  document.getElementById('pmNotesMistakes').innerHTML = (detail.commonMistakes||[]).map(m=>`<li>${m}</li>`).join('');
+  document.getElementById('pmNotesDiagramWrap').innerHTML = renderDrillDiagramSVG(detail.diagram) || '';
+}
+function renderPmNotesForCurrentDrill(){
+  const item = plan[pmIndex];
+  const cacheKey = item.name + '|' + (item.desc||'');
+  document.getElementById('pmNotesError').style.display = 'none';
+  document.getElementById('pmNotesLoading').style.display = 'none';
+  if(drillDetailCache[cacheKey]){
+    renderPmNotesContent(drillDetailCache[cacheKey]);
+    document.getElementById('pmNotesEmpty').style.display = 'none';
+    document.getElementById('pmNotesContent').style.display = 'block';
+  } else {
+    document.getElementById('pmNotesContent').style.display = 'none';
+    document.getElementById('pmNotesEmpty').style.display = 'block';
+  }
+}
+document.getElementById('pmNotesToggleBtn').addEventListener('click', ()=>{
+  const panel = document.getElementById('pmNotesPanel');
+  if(panel.style.display === 'block'){ panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  renderPmNotesForCurrentDrill();
+});
+document.getElementById('pmGenerateNotesBtn').addEventListener('click', async ()=>{
+  const item = plan[pmIndex];
+  const cacheKey = item.name + '|' + (item.desc||'');
+  const division = document.getElementById('divisionSelect').value;
+  document.getElementById('pmNotesError').style.display = 'none';
+  document.getElementById('pmNotesEmpty').style.display = 'none';
+  document.getElementById('pmNotesLoading').style.display = 'block';
+  const result = await fetchDrillDetailData(item, division);
+  document.getElementById('pmNotesLoading').style.display = 'none';
+  if(result.ok){
+    drillDetailCache[cacheKey] = result.data;
+    renderPmNotesContent(result.data);
+    document.getElementById('pmNotesContent').style.display = 'block';
+  } else {
+    document.getElementById('pmNotesError').textContent = result.error;
+    document.getElementById('pmNotesError').style.display = 'block';
+    document.getElementById('pmNotesEmpty').style.display = 'block';
+  }
 });
 
 /* ---------- team switcher ---------- */
