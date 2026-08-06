@@ -17,6 +17,7 @@
   :root{
     --navy:#4F01A3;
     --gold:#BDEE49;
+    --brand-lime:#A6E000;
     --off-white:#F7F5EF;
     --teal:#3A7D7D;
     --charcoal:#262A33;
@@ -185,23 +186,39 @@
   }
   .club-team-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
   .director-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .director-header-main{display:flex;align-items:center;gap:12px;}
+  .overview-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg, var(--navy), var(--purple-deep));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .overview-icon .icon{width:17px;height:17px;color:var(--brand-lime);}
+  /* director dashboard zone — panel top-bar accent leans into the brand lime instead of the generic purple-deep used elsewhere in the app */
+  #directorViewContent .panel::before{background:linear-gradient(90deg, var(--navy), var(--brand-lime));}
+  #directorViewContent .cal-cell-today{border-color:var(--brand-lime);box-shadow:0 0 0 1px var(--brand-lime) inset;background:#FBFFE8;}
 
-  /* dashboard hero banner — scoreboard style, echoes the Otto Gameday screen */
+  /* dashboard hero banner — scoreboard style, echoes the Otto Gameday screen,
+     with a diagonal lime-stripe corner pulled from ottosport.ai's photo treatment */
   .dashboard-hero{
     position:relative;overflow:hidden;border-radius:16px;margin-bottom:18px;
     background:var(--purple-deep);box-shadow:0 10px 28px rgba(79,1,163,.28);
+  }
+  .dashboard-hero-stripe-corner{
+    position:absolute;top:0;right:0;width:130px;height:100%;
+    clip-path:polygon(45% 0,100% 0,100% 100%,0 100%);overflow:hidden;pointer-events:none;
+  }
+  .dashboard-hero-stripe-corner::before{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(115deg, transparent 0 10px, var(--brand-lime) 10px 16px, transparent 16px 26px);
+    opacity:.85;
   }
   .dashboard-hero-band{
     background:linear-gradient(90deg, var(--navy), var(--purple-deep));
     padding:22px 26px 16px;position:relative;
   }
-  .dashboard-hero-band::after{content:'';position:absolute;left:26px;right:26px;bottom:0;height:1px;background:var(--gold);opacity:.5;}
-  .dashboard-hero-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:23px;margin:0 0 3px;color:var(--white);text-transform:uppercase;letter-spacing:.01em;}
-  .dashboard-hero-sub{font-size:13px;color:rgba(255,255,255,.72);margin:0;max-width:520px;}
-  .dashboard-hero-stats{display:flex;padding:18px 26px 22px;}
+  .dashboard-hero-band::after{content:'';position:absolute;left:26px;right:150px;bottom:0;height:1px;background:var(--brand-lime);opacity:.6;}
+  .dashboard-hero-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:23px;margin:0 0 3px;color:var(--white);text-transform:uppercase;letter-spacing:.01em;position:relative;z-index:1;}
+  .dashboard-hero-sub{font-size:13px;color:rgba(255,255,255,.72);margin:0;max-width:480px;position:relative;z-index:1;}
+  .dashboard-hero-stats{display:flex;padding:18px 26px 22px;position:relative;}
   .dashboard-hero-stat{flex:1;text-align:center;}
   .dashboard-hero-stat + .dashboard-hero-stat{border-left:1px dashed rgba(255,255,255,.2);}
-  .dashboard-hero-stat .num{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:clamp(26px,5vw,36px);color:var(--gold);display:block;line-height:1;}
+  .dashboard-hero-stat .num{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:clamp(26px,5vw,36px);color:var(--brand-lime);display:block;line-height:1;}
   .dashboard-hero-stat .label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.6);margin-top:8px;display:block;}
 
   .team-avatar{
@@ -228,6 +245,8 @@
   .director-template-card:hover{box-shadow:var(--shadow-md);border-color:#D2CBE0;transform:translateY(-2px) rotate(-.3deg);}
   .director-template-card .name{font-weight:700;color:var(--navy);font-size:13.5px;margin:0 0 2px;}
   .director-template-card .meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#767C88;}
+  .tmpl-badge{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .tmpl-badge .icon{width:16px;height:16px;color:var(--brand-lime);}
   .director-template-card .drag-hint{font-size:9.5px;color:#B2AEC0;margin-top:4px;}
   .club-team-name{font-weight:700;color:var(--navy);font-size:14.5px;margin:0 0 2px;}
   .club-team-meta{font-size:11.5px;color:#767C88;font-family:'IBM Plex Mono',monospace;}
@@ -1084,6 +1103,7 @@
 
   <div id="directorViewContent" style="display:none;">
     <div class="dashboard-hero">
+      <div class="dashboard-hero-stripe-corner"></div>
       <div class="dashboard-hero-band">
         <h2 class="dashboard-hero-title" id="dashboardHeroGreeting">Hey there!</h2>
         <p class="dashboard-hero-sub" id="dashboardHeroSub">Let's make today's practice a great one.</p>
@@ -1096,9 +1116,12 @@
     </div>
     <div class="panel">
       <div class="director-header">
-        <div>
-          <h2 class="panel-title" style="margin-bottom:2px;" id="dashboardOverviewTitle">Club overview</h2>
-          <p class="modal-sub" style="margin-bottom:0;" id="dashboardOverviewSub">Every team at the club.</p>
+        <div class="director-header-main">
+          <div class="overview-icon"><svg class="icon"><use href="#i-clipboard"/></svg></div>
+          <div>
+            <h2 class="panel-title" style="margin-bottom:2px;" id="dashboardOverviewTitle">Club overview</h2>
+            <p class="modal-sub" style="margin-bottom:0;" id="dashboardOverviewSub">Every team at the club.</p>
+          </div>
         </div>
         <button class="action-btn" id="manageTeamsBtn"><svg class="icon"><use href="#i-settings"/></svg>Manage Teams</button>
       </div>
@@ -4066,6 +4089,7 @@ async function renderDirectorTemplates(){
     const accentColor = TEMPLATE_ACCENTS[i % TEMPLATE_ACCENTS.length];
     return `
     <div class="director-template-card" draggable="true" data-ref='${JSON.stringify(c.ref)}' style="border-left-color:${accentColor};">
+      <div class="tmpl-badge" style="background:${accentColor};"><svg class="icon"><use href="#i-clipboard"/></svg></div>
       <div>
         <p class="name">${c.name}</p>
         <p class="meta">${c.meta}</p>
@@ -4244,9 +4268,19 @@ function renderManageTeams(){
         <p class="name">${t.name}</p>
         <p class="meta">${SPORTS[getTeamSport(t)].label} · ${t.ageGroup} · ${t.division}${t.coachName ? ' · Coach: '+t.coachName : ''}</p>
       </div>
-      <button class="mini-btn remove del-team-btn" title="Remove team">✕</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="mini-btn schedule-team-btn" title="Set ${t.name}'s weekly practice times"><svg class="icon"><use href="#i-calendar"/></svg></button>
+        <button class="mini-btn remove del-team-btn" title="Remove team">✕</button>
+      </div>
     </div>
   `).join('');
+  listEl.querySelectorAll('.schedule-team-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const teamId = btn.closest('.manage-team-row').dataset.teamId;
+      closeModal('manageTeamsModal');
+      await openRecurringModal(teamId);
+    });
+  });
   listEl.querySelectorAll('.del-team-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const teamId = btn.closest('.manage-team-row').dataset.teamId;
