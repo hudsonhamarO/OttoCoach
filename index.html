@@ -652,6 +652,8 @@
 
   .equip-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:14px;}
   .equip-item input[type="checkbox"]{width:17px;height:17px;accent-color:var(--navy);}
+  .equip-item .equip-name{flex:1;}
+  .equip-item .equip-qty{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#767C88;background:var(--off-white);border-radius:6px;padding:2px 8px;}
   .equip-empty{padding:16px 4px;color:#8B909B;font-size:13px;}
 
   .share-code{font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:700;letter-spacing:.12em;color:var(--navy);margin:0 0 12px;}
@@ -722,6 +724,16 @@
   #gamedayViewContent .brand-live{color:var(--gold);margin-left:3px;}
   #gamedayViewContent .title{font-family:'Oswald',sans-serif;font-weight:700;font-size:22px;letter-spacing:.01em;margin:0;text-transform:uppercase;}
   #gamedayViewContent .scoreboard{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;margin-bottom:14px;}
+  #gamedayViewContent .set-won-banner{
+    display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+    background:linear-gradient(90deg, var(--navy), var(--purple-deep));color:var(--white);
+    border-radius:12px;padding:12px 18px;margin:-2px 0 14px;box-shadow:var(--shadow-md);
+    animation:setWonIn .25s ease;
+  }
+  #gamedayViewContent .set-won-banner span{font-family:'Oswald',sans-serif;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:.02em;}
+  #gamedayViewContent .set-won-banner .mini-btn-text{border-color:var(--gold);color:var(--gold);background:transparent;}
+  #gamedayViewContent .set-won-banner .mini-btn-text:hover{background:var(--gold);color:var(--purple-deep);}
+  @keyframes setWonIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
   #gamedayViewContent .team-block{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 16px;text-align:center;box-shadow:var(--shadow-sm);transition:box-shadow .2s ease, border-color .2s ease;}
   #gamedayViewContent .team-block.serving{border-color:var(--navy);background:#FAF6FF;box-shadow:var(--shadow-md);}
   #gamedayViewContent .team-name-input{
@@ -1194,6 +1206,10 @@
       <div class="team-score" id="oppScoreDisplay">0</div>
       <span class="serve-badge" id="oppServeBadge" style="visibility:hidden;">Serving</span>
     </div>
+  </div>
+  <div class="set-won-banner" id="setWonBanner" style="display:none;">
+    <span id="setWonText"></span>
+    <button class="mini-btn-text" id="setWonNewSetBtn">Start next set →</button>
   </div>
 
   <div class="action-bar">
@@ -2069,6 +2085,19 @@ const VOLLEYBALL_TEMPLATES = [
     items:['d3','d10','d4','d8','b1','d13','d16','d19']},
 ];
 
+// Suggested quantity to have on hand per equipment type — drills only record
+// which items they use, not how many, so this is a coaching-judgment default
+// (enough for a typical squad), not a count derived from the timeline.
+const EQUIPMENT_QTY = {
+  'Volleyballs': '8',
+  'Cones': '10',
+  'Net': '1',
+  'Agility ladder': '1',
+  'Target markers': '4',
+  'Scoreboard': '1',
+  'Water bottles': '1 per player',
+};
+
 // ============================================================================
 // SPORTS — a small registry so the drill library, category pills, built-in
 // templates, and AI-feature wording all come from one place. Only volleyball
@@ -2168,20 +2197,40 @@ async function safeSet(key, value, shared=false){
       if(!user) return false;
       owner_id = user.id;
     }
-    let existingQuery = sb.from('kv_store').select('id').eq('key', key).eq('shared', shared);
-    existingQuery = shared ? existingQuery.is('owner_id', null) : existingQuery.eq('owner_id', owner_id);
-    const { data: existing } = await existingQuery.maybeSingle();
+    const findExisting = () => {
+      let q = sb.from('kv_store').select('id').eq('key', key).eq('shared', shared);
+      q = shared ? q.is('owner_id', null) : q.eq('owner_id', owner_id);
+      return q.maybeSingle();
+    };
+    const { data: existing } = await findExisting();
 
     if(existing){
       const { error } = await sb.from('kv_store')
         .update({ value, updated_at: new Date().toISOString() })
         .eq('id', existing.id);
       if(error){ console.error('storage update failed', error); return false; }
-    } else {
-      const { error } = await sb.from('kv_store').insert({ key, shared, owner_id, value });
-      if(error){ console.error('storage insert failed', error); return false; }
+      return true;
     }
-    return true;
+
+    const { error: insertError } = await sb.from('kv_store').insert({ key, shared, owner_id, value });
+    if(!insertError) return true;
+
+    // Two saves for the same key raced (e.g. rapid-fire stat taps during a live
+    // match): both passed the "doesn't exist yet" check above before either
+    // committed, so this insert lost to the unique constraint. Fall back to an
+    // update instead of dropping the write silently.
+    if(insertError.code === '23505'){
+      const { data: retryExisting } = await findExisting();
+      if(retryExisting){
+        const { error: retryError } = await sb.from('kv_store')
+          .update({ value, updated_at: new Date().toISOString() })
+          .eq('id', retryExisting.id);
+        if(retryError){ console.error('storage update-after-race failed', retryError); return false; }
+        return true;
+      }
+    }
+    console.error('storage insert failed', insertError);
+    return false;
   } catch(e){ console.error('storage set failed', e); return false; }
 }
 async function safeDelete(key, shared=false){
@@ -3411,7 +3460,7 @@ async function renderWeekView(){
   const rangeLabel = monday.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' – ' + sunday.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('weekRange').textContent = rangeLabel;
 
-  const idx = await getPlanIndex();
+  const idx = await getPlanIndex(getCurrentTeamId());
   const days = [];
   for(let i=0;i<7;i++){
     const d = new Date(monday);
@@ -3491,7 +3540,8 @@ function renderEquipment(){
   [...items].sort().forEach(name=>{
     const row = document.createElement('label');
     row.className = 'equip-item';
-    row.innerHTML = `<input type="checkbox"> ${name}`;
+    const qty = EQUIPMENT_QTY[name];
+    row.innerHTML = `<input type="checkbox"><span class="equip-name">${name}</span>${qty ? `<span class="equip-qty">${qty}</span>` : ''}`;
     wrap.appendChild(row);
   });
 }
@@ -4507,6 +4557,7 @@ document.getElementById('startMatchBtn').addEventListener('click', async ()=>{
 });
 
 /* ---------- new set ---------- */
+document.getElementById('setWonNewSetBtn').addEventListener('click', ()=>{ document.getElementById('newSetBtn').click(); });
 document.getElementById('newSetBtn').addEventListener('click', ()=>{
   if(roster.length<6){ alert('Set up your roster and starting lineup first (Match Setup).'); return; }
   renderLineupGrid('newSetLineupGrid');
@@ -4572,6 +4623,13 @@ function renderSelectedIndicator(){
 }
 
 /* ---------- scoreboard rendering ---------- */
+// Standard volleyball set-win rule: first to 25, win by 2 (no cap) — so a
+// team has actually won only once both conditions hold, not just at 25.
+function getSetWinner(us, opp){
+  if(us>=25 && us-opp>=2) return 'us';
+  if(opp>=25 && opp-us>=2) return 'opp';
+  return null;
+}
 function renderScoreboard(){
   document.getElementById('usScoreDisplay').textContent = usScore;
   document.getElementById('oppScoreDisplay').textContent = oppScore;
@@ -4582,6 +4640,16 @@ function renderScoreboard(){
   document.getElementById('oppServeBadge').style.visibility = servingTeam==='opp' ? 'visible':'hidden';
   const histEl = document.getElementById('setHistory');
   histEl.innerHTML = setHistory.map((s,i)=>`<span class="set-chip">S${i+1}: ${s.us}-${s.opp}</span>`).join('');
+
+  const winner = getSetWinner(usScore, oppScore);
+  const banner = document.getElementById('setWonBanner');
+  if(winner){
+    const winnerName = winner==='us' ? (document.getElementById('usName').value||'Our Team') : (document.getElementById('oppName').value||'Opponent');
+    document.getElementById('setWonText').textContent = `${winnerName} wins the set, ${usScore}–${oppScore}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
 }
 
 /* ---------- run / streak calculations ---------- */
