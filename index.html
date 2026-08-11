@@ -191,10 +191,11 @@
   .account-chip .logout-link{color:var(--navy);cursor:pointer;font-weight:600;text-decoration:underline;}
 
   .director-banner{
-    display:flex;align-items:center;gap:8px;
-    background:#FFF6E0;border:1px solid #F2D98A;color:#8A6D1D;
-    font-size:13px;font-weight:600;padding:10px 14px;border-radius:9px;margin-bottom:16px;
+    display:flex;align-items:center;gap:6px;
+    color:#8B8796;font-size:12px;font-weight:500;
+    margin:6px 2px 0;
   }
+  .director-banner::before{content:'ⓘ';color:#B2AEC0;font-size:12px;}
   .club-team-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
   .director-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
   .director-header-main{display:flex;align-items:center;gap:12px;}
@@ -375,6 +376,7 @@
   /* toolbar */
   .action-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;justify-content:space-between;
     background:var(--white);border:1px solid var(--line);border-radius:12px;padding:8px 10px;box-shadow:var(--shadow-sm);}
+  .action-bar.slim{background:none;border:none;box-shadow:none;padding:2px 0 0;margin-bottom:18px;}
   .action-group{display:flex;gap:6px;flex-wrap:wrap;padding-right:12px;border-right:1px solid var(--line);}
   .action-group:last-of-type{border-right:none;padding-right:0;}
   .action-btn{
@@ -1087,12 +1089,16 @@
         </div>
       </div>
       <div class="meta-divider" id="practiceMetaDivider"></div>
-      <div class="meta-group" id="practiceMetaGroup">
-        <div class="meta-field"><label for="practiceDate">Date</label><input id="practiceDate" type="date"></div>
-        <div class="meta-field"><label for="startTime">Start time</label><input id="startTime" type="time" value="18:00"></div>
-        <div class="meta-field"><label for="targetLen">Target length (min)</label><input id="targetLen" type="number" value="90" min="15" step="5"></div>
+      <div class="meta-group" id="practiceMetaGroup" style="flex:1;justify-content:space-between;">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+          <div class="meta-field"><label for="practiceDate">Date</label><input id="practiceDate" type="date"></div>
+          <div class="meta-field"><label for="startTime">Start time</label><input id="startTime" type="time" value="18:00"></div>
+          <div class="meta-field"><label for="targetLen">Target length (min)</label><input id="targetLen" type="number" value="90" min="15" step="5"></div>
+        </div>
+        <button class="action-btn primary" id="startPracticeBtn"><svg class="icon"><use href="#i-play"/></svg>Start Practice Mode</button>
       </div>
     </div>
+    <p class="director-banner" id="directorBanner" style="display:none;"></p>
 
     <div class="allocation" id="coachAllocation">
       <div class="allocation-top">
@@ -1111,8 +1117,7 @@
     </div>
 
   <div id="coachViewContent">
-    <div class="director-banner" id="directorBanner" style="display:none;"></div>
-    <div class="action-bar">
+    <div class="action-bar slim">
       <div class="action-group">
         <button class="action-btn" id="openTemplatesBtn"><svg class="icon"><use href="#i-clipboard"/></svg>Templates</button>
         <button class="action-btn ai" id="openAiBtn"><svg class="icon"><use href="#i-sparkle"/></svg>AI Plan Generator</button>
@@ -1124,7 +1129,6 @@
         <button class="action-btn ghost" id="openEquipBtn"><svg class="icon"><use href="#i-box"/></svg>Equipment</button>
         <button class="action-btn ghost" id="openShareBtn"><svg class="icon"><use href="#i-share"/></svg>Assistant Coaches</button>
       </div>
-      <button class="action-btn primary" id="startPracticeBtn"><svg class="icon"><use href="#i-play"/></svg>Start Practice Mode</button>
     </div>
 
     <div class="grid">
