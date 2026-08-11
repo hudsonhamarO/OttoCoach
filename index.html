@@ -271,6 +271,15 @@
   .td-roster-name{flex:1;color:var(--charcoal);}
   .td-libero-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);background:#E4F1F0;padding:2px 7px;border-radius:999px;flex-shrink:0;}
   .td-empty{padding:10px 4px;color:#8B909B;font-size:13px;}
+  .td-roster-del{
+    width:22px;height:22px;border:none;background:none;color:#B2AEC0;cursor:pointer;
+    flex-shrink:0;font-size:12px;border-radius:5px;
+  }
+  .td-roster-del:hover{background:#FBE4DD;color:#C1502E;}
+  .td-roster-add{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);}
+  .td-roster-add-num{width:44px;flex-shrink:0;padding:7px 8px;border:1px solid var(--line);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);text-align:center;}
+  .td-roster-add-name{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);}
+  .td-roster-add .mini-btn{flex-shrink:0;}
 
   .td-sched-row{
     display:flex;justify-content:space-between;align-items:center;gap:14px;
@@ -1233,7 +1242,7 @@
 
     <div class="panel">
       <h2 class="panel-title">Roster</h2>
-      <p class="modal-sub">Add or edit players from Otto Gameday → Match Setup.</p>
+      <p class="modal-sub">Libero and substitution settings live in Otto Gameday → Match Setup.</p>
       <div id="teamDetailRoster"></div>
     </div>
 
@@ -3526,6 +3535,17 @@ function getWeekBounds(anchor){
 function toISODate(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// Recurring slots and saved plans store times as 24h "HH:MM" (what <input
+// type="time"> speaks) — this is only for displaying that value as plain text
+// elsewhere, since native time inputs already localize themselves.
+function formatClockTime(hhmm){
+  if(!hhmm) return '';
+  const [h,m] = hhmm.split(':').map(Number);
+  if(Number.isNaN(h)||Number.isNaN(m)) return hhmm;
+  const period = h < 12 ? 'AM' : 'PM';
+  let h12 = h % 12; if(h12===0) h12 = 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
 async function renderWeekView(){
   const {monday, sunday} = getWeekBounds(weekAnchor);
   const rangeLabel = monday.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' – ' + sunday.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
@@ -3893,22 +3913,54 @@ async function showTeamDetailView(teamId){
   await renderTeamDetailSchedule(team.id);
 }
 
+// Roster add/remove here writes straight to the same gd-roster:<teamId> key
+// Otto Gameday's Match Setup reads from — same data, two entry points. Libero
+// status and sub-eligible numbers stay Gameday-only (that's stat-tracking
+// config, not roster membership), so this sticks to add/remove/rename.
+async function loadTeamDetailRoster(teamId){
+  const raw = await safeGet('gd-roster:'+teamId, true);
+  try{ return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+}
 async function renderTeamDetailRoster(teamId){
   const wrap = document.getElementById('teamDetailRoster');
-  const raw = await safeGet('gd-roster:'+teamId, true);
-  let teamRoster = [];
-  try{ teamRoster = raw ? JSON.parse(raw) : []; }catch(e){ teamRoster = []; }
-  if(teamRoster.length===0){
-    wrap.innerHTML = '<p class="td-empty">No players added yet.</p>';
-    return;
-  }
-  wrap.innerHTML = teamRoster.map(p=>`
+  let teamRoster = await loadTeamDetailRoster(teamId);
+
+  const rowsHtml = teamRoster.length ? teamRoster.map(p=>`
     <div class="td-roster-row">
       <span class="td-roster-num">#${p.num}</span>
       <span class="td-roster-name">${p.name}</span>
       ${p.isLibero ? '<span class="td-libero-tag">Libero</span>' : ''}
+      <button class="td-roster-del" data-player-id="${p.id}" title="Remove player">✕</button>
     </div>
-  `).join('');
+  `).join('') : '<p class="td-empty">No players added yet.</p>';
+
+  wrap.innerHTML = rowsHtml + `
+    <div class="td-roster-add">
+      <input type="text" class="td-roster-add-num" id="teamDetailNewPlayerNum" placeholder="#">
+      <input type="text" class="td-roster-add-name" id="teamDetailNewPlayerName" placeholder="Player name">
+      <button class="mini-btn" id="teamDetailAddPlayerBtn" title="Add player"><svg class="icon"><use href="#i-plus"/></svg></button>
+    </div>
+  `;
+
+  wrap.querySelectorAll('.td-roster-del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      teamRoster = teamRoster.filter(p=>p.id!==btn.dataset.playerId);
+      await safeSet('gd-roster:'+teamId, JSON.stringify(teamRoster), true);
+      renderTeamDetailRoster(teamId);
+    });
+  });
+  const numEl = document.getElementById('teamDetailNewPlayerNum');
+  const nameEl = document.getElementById('teamDetailNewPlayerName');
+  const addPlayer = async ()=>{
+    const num = numEl.value.trim();
+    const name = nameEl.value.trim();
+    if(!num || !name) return;
+    teamRoster.push({id:'pl'+Date.now(), num, name, isLibero:false, replaces:[]});
+    await safeSet('gd-roster:'+teamId, JSON.stringify(teamRoster), true);
+    renderTeamDetailRoster(teamId);
+  };
+  document.getElementById('teamDetailAddPlayerBtn').addEventListener('click', addPlayer);
+  nameEl.addEventListener('keydown', e=>{ if(e.key==='Enter') addPlayer(); });
 }
 
 // Merges the weekly recurring pattern with actual saved plans into ONE
@@ -3950,7 +4002,7 @@ async function renderTeamDetailSchedule(teamId){
   const recurring = (await getRecurringSlots(teamId)).slice().sort((a,b)=>a.day-b.day || a.start.localeCompare(b.start));
   const patternEl = document.getElementById('teamDetailPatternSummary');
   patternEl.textContent = recurring.length
-    ? 'Every ' + recurring.map(s=>`${dayNames[s.day].slice(0,3)} ${s.start}–${s.end}`).join(', ')
+    ? 'Every ' + recurring.map(s=>`${dayNames[s.day].slice(0,3)} ${formatClockTime(s.start)}–${formatClockTime(s.end)}`).join(', ')
     : 'No weekly pattern set yet — add one to build out the schedule below.';
 
   const wrap = document.getElementById('teamDetailSchedule');
@@ -3972,7 +4024,7 @@ async function renderTeamDetailSchedule(teamId){
       return `
       <div class="${rowClasses.join(' ')}" data-plan-id="${entry.planId}">
         <div>
-          <p class="td-sched-date">${dateLabel}${entry.time ? ' · ' + entry.time : ''}</p>
+          <p class="td-sched-date">${dateLabel}${entry.time ? ' · ' + formatClockTime(entry.time) : ''}</p>
           <p class="td-sched-meta">${entry.drillCount} drills · ${entry.totalMin} min${entry.sourceTemplate ? ' · ' + entry.sourceTemplate : ''}</p>
           <p class="td-sched-focus"><b>Focus:</b> ${focusLabel}</p>
         </div>
@@ -3982,7 +4034,7 @@ async function renderTeamDetailSchedule(teamId){
     return `
       <div class="${rowClasses.join(' ')}" data-date="${entry.date}" data-time="${entry.time||''}">
         <div>
-          <p class="td-sched-date">${dateLabel}${entry.time ? ' · ' + entry.time : ''}</p>
+          <p class="td-sched-date">${dateLabel}${entry.time ? ' · ' + formatClockTime(entry.time) : ''}</p>
           <p class="td-sched-meta">Not planned yet</p>
         </div>
         <span class="td-sched-cta build">+ Build plan</span>
@@ -4237,8 +4289,8 @@ async function renderClubCalendarMonth(){
       if(realTeamIds.has(team.id)) return;
       (recurringByTeam[team.id]||[]).filter(s=>s.day===dow).forEach(slot=>{
         entriesHtml += `
-          <div class="cal-chip cal-chip-virtual" style="--chip-color:${getTeamColor(team.id)};" data-team-id="${team.id}" data-date="${dateISO}" data-start="${slot.start}" title="${team.name} — recurring ${slot.start}–${slot.end}, not planned yet">
-            <span class="cal-chip-dot"></span><span class="cal-chip-label">${team.name}</span><span class="cal-chip-time">${slot.start}</span>
+          <div class="cal-chip cal-chip-virtual" style="--chip-color:${getTeamColor(team.id)};" data-team-id="${team.id}" data-date="${dateISO}" data-start="${slot.start}" title="${team.name} — recurring ${formatClockTime(slot.start)}–${formatClockTime(slot.end)}, not planned yet">
+            <span class="cal-chip-dot"></span><span class="cal-chip-label">${team.name}</span><span class="cal-chip-time">${formatClockTime(slot.start)}</span>
           </div>
         `;
       });
@@ -4336,7 +4388,7 @@ async function renderRecurringSlotsList(){
   const listEl = document.getElementById('recurringSlotsList');
   listEl.innerHTML = slots.length ? slots.map(s=>`
     <div class="recurring-slot-row" data-slot-id="${s.id}">
-      <span>${dayNames[s.day]} · ${s.start}–${s.end}</span>
+      <span>${dayNames[s.day]} · ${formatClockTime(s.start)}–${formatClockTime(s.end)}</span>
       <button class="mini-btn remove recurring-del-btn" data-slot-id="${s.id}" title="Remove">✕</button>
     </div>
   `).join('') : '<p class="modal-sub">No recurring times set for this team yet.</p>';
