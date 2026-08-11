@@ -263,6 +263,30 @@
   .club-team-meta{font-size:11.5px;color:#767C88;font-family:'IBM Plex Mono',monospace;}
   .club-team-plan-status{font-size:12px;color:#565B66;text-align:right;}
   .club-team-plan-status.none{color:#B2AEC0;font-style:italic;}
+
+  /* ===== Team detail view ===== */
+  .td-roster-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .td-roster-row:last-child{border-bottom:none;}
+  .td-roster-num{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--navy);width:26px;flex-shrink:0;}
+  .td-roster-name{flex:1;color:var(--charcoal);}
+  .td-libero-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);background:#E4F1F0;padding:2px 7px;border-radius:999px;flex-shrink:0;}
+  .td-empty{padding:10px 4px;color:#8B909B;font-size:13px;}
+
+  .td-recurring-row{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--charcoal);}
+  .td-recurring-row:last-child{border-bottom:none;}
+  .td-recurring-dot{width:7px;height:7px;border-radius:50%;background:var(--brand-lime);flex-shrink:0;}
+
+  .td-plan-card{
+    display:flex;justify-content:space-between;align-items:center;gap:14px;
+    border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin-bottom:8px;
+    transition:box-shadow .15s ease, transform .15s ease;cursor:pointer;background:var(--white);
+  }
+  .td-plan-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:#D2CBE0;}
+  .td-plan-date{font-family:'Oswald',sans-serif;font-weight:600;font-size:14.5px;color:var(--navy);margin:0 0 3px;}
+  .td-plan-meta{font-size:11.5px;color:#767C88;font-family:'IBM Plex Mono',monospace;margin:0 0 4px;}
+  .td-plan-focus{font-size:12px;color:var(--charcoal);}
+  .td-plan-focus b{color:var(--purple-deep);}
+  .td-plan-edit{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;color:var(--navy);flex-shrink:0;white-space:nowrap;}
   .meta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:10px 14px;box-shadow:var(--shadow-sm);}
   .meta-group{display:flex;flex-wrap:wrap;gap:12px;}
   .meta-divider{width:1px;align-self:stretch;background:var(--line);min-height:40px;}
@@ -1186,6 +1210,44 @@
         <div class="cal-weekday-head">Thu</div><div class="cal-weekday-head">Fri</div><div class="cal-weekday-head">Sat</div><div class="cal-weekday-head">Sun</div>
       </div>
       <div class="cal-month-grid" id="clubCalendarGrid"></div>
+    </div>
+  </div>
+
+  <div id="teamDetailContent" style="display:none;">
+    <button class="mini-btn-text" id="teamDetailBackBtn" style="margin-bottom:16px;">← Back to Dashboard</button>
+
+    <div class="panel">
+      <div class="director-header">
+        <div class="director-header-main">
+          <div class="team-avatar" id="teamDetailAvatar" style="width:46px;height:46px;font-size:16px;"></div>
+          <div>
+            <h2 class="panel-title" id="teamDetailName" style="margin-bottom:2px;font-size:19px;"></h2>
+            <p class="modal-sub" id="teamDetailMeta" style="margin-bottom:0;"></p>
+          </div>
+        </div>
+        <button class="action-btn primary" id="teamDetailNewPlanBtn"><svg class="icon"><use href="#i-plus"/></svg>New practice plan</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2 class="panel-title">Roster</h2>
+        <p class="modal-sub">Add or edit players from Otto Gameday → Match Setup.</p>
+        <div id="teamDetailRoster"></div>
+      </div>
+      <div class="panel">
+        <div class="director-header">
+          <h2 class="panel-title" style="margin-bottom:0;">Weekly practice times</h2>
+          <button class="mini-btn" id="teamDetailScheduleBtn" title="Edit weekly practice times"><svg class="icon"><use href="#i-calendar"/></svg></button>
+        </div>
+        <div id="teamDetailRecurring" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Scheduled practices</h2>
+      <p class="modal-sub">Every plan saved for this team, most recent first. Open one to edit it.</p>
+      <div id="teamDetailPlans"></div>
     </div>
   </div>
 
@@ -2166,6 +2228,7 @@ let searchQuery = '';
 let plan = [];
 let uidCounter = 1;
 let currentTemplateSource = null; // name of the template this plan was loaded from, if any (for traceability)
+let planBuilderDrawerOrigin = null; // teamId if the drawer was opened from Team Detail, so closing it refreshes that view too
 
 /* ---------- storage helpers ---------- */
 // ============================================================================
@@ -3788,23 +3851,6 @@ function ensureTeamSelectable(teamId){
   return team;
 }
 
-// Lets a director open the plan builder for ANY team in the club, not just their own —
-// loads that team's most recent saved plan (or starts fresh if it has none).
-async function openPlanBuilderForTeam(teamId){
-  const team = ensureTeamSelectable(teamId);
-  if(!team) return;
-  const idx = await getPlanIndex(teamId);
-  if(idx[0]){
-    await loadPlan(idx[0].id);
-  } else {
-    plan = [];
-    currentTemplateSource = null;
-    renderTimeline();
-  }
-  updateDirectorBanner();
-  openPlanBuilderDrawer();
-}
-
 // Opens one specific plan straight from the club schedule calendar (not just "latest").
 async function openSpecificPlanFromCalendar(teamId, planId){
   const team = ensureTeamSelectable(teamId);
@@ -3814,11 +3860,114 @@ async function openSpecificPlanFromCalendar(teamId, planId){
   openPlanBuilderDrawer();
 }
 
+/* ---------- team detail view ---------- */
+// One team's home base: roster (read-only here — edited in Otto Gameday's
+// Match Setup, which already owns that data), weekly recurring practice
+// times, and every practice plan ever saved for this team, each opening
+// straight into the plan builder to edit.
+async function showTeamDetailView(teamId){
+  const team = ensureTeamSelectable(teamId);
+  if(!team) return;
+  hideAllViews();
+  document.getElementById('teamDetailContent').style.display = 'block';
+  document.getElementById('mainTitle').textContent = team.name;
+
+  const teamColor = getTeamColor(team.id);
+  const initials = team.name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const avatar = document.getElementById('teamDetailAvatar');
+  avatar.style.background = teamColor;
+  avatar.textContent = initials;
+  document.getElementById('teamDetailName').textContent = team.name;
+  document.getElementById('teamDetailMeta').textContent =
+    `${SPORTS[getTeamSport(team)].label} · ${team.ageGroup} · ${team.division} · Coach: ${team.coachName || '(unassigned)'}`;
+
+  await renderTeamDetailRoster(team.id);
+  await renderTeamDetailRecurring(team.id);
+  await renderTeamDetailPlans(team.id);
+}
+
+async function renderTeamDetailRoster(teamId){
+  const wrap = document.getElementById('teamDetailRoster');
+  const raw = await safeGet('gd-roster:'+teamId, true);
+  let teamRoster = [];
+  try{ teamRoster = raw ? JSON.parse(raw) : []; }catch(e){ teamRoster = []; }
+  if(teamRoster.length===0){
+    wrap.innerHTML = '<p class="td-empty">No players added yet.</p>';
+    return;
+  }
+  wrap.innerHTML = teamRoster.map(p=>`
+    <div class="td-roster-row">
+      <span class="td-roster-num">#${p.num}</span>
+      <span class="td-roster-name">${p.name}</span>
+      ${p.isLibero ? '<span class="td-libero-tag">Libero</span>' : ''}
+    </div>
+  `).join('');
+}
+
+async function renderTeamDetailRecurring(teamId){
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const wrap = document.getElementById('teamDetailRecurring');
+  const slots = (await getRecurringSlots(teamId)).slice().sort((a,b)=>a.day-b.day || a.start.localeCompare(b.start));
+  if(slots.length===0){
+    wrap.innerHTML = '<p class="td-empty">No weekly practice times set yet.</p>';
+    return;
+  }
+  wrap.innerHTML = slots.map(s=>`
+    <div class="td-recurring-row"><span class="td-recurring-dot"></span>${dayNames[s.day]} · ${s.start}–${s.end}</div>
+  `).join('');
+}
+document.getElementById('teamDetailScheduleBtn').addEventListener('click', async ()=>{
+  await openRecurringModal(getCurrentTeamId());
+});
+
+async function renderTeamDetailPlans(teamId){
+  const wrap = document.getElementById('teamDetailPlans');
+  const idx = (await getPlanIndex(teamId)).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(idx.length===0){
+    wrap.innerHTML = '<p class="td-empty">No practices scheduled yet — start one above.</p>';
+    return;
+  }
+  wrap.innerHTML = idx.map(entry=>{
+    const dateLabel = entry.date ? new Date(entry.date+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}) : 'No date set';
+    const cats = Object.entries(entry.catTotals||{}).sort((a,b)=>b[1]-a[1]).slice(0,2)
+      .map(([cat])=>(catMap[cat]||ALL_CATEGORIES_MAP[cat]||{label:cat}).label);
+    const focusLabel = cats.length ? cats.join(', ') : '—';
+    return `
+    <div class="td-plan-card" data-plan-id="${entry.id}">
+      <div>
+        <p class="td-plan-date">${dateLabel}</p>
+        <p class="td-plan-meta">${entry.drillCount} drills · ${entry.totalMin} min${entry.sourceTemplate ? ' · ' + entry.sourceTemplate : ''}</p>
+        <p class="td-plan-focus"><b>Focus:</b> ${focusLabel}</p>
+      </div>
+      <span class="td-plan-edit">Edit →</span>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.td-plan-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      planBuilderDrawerOrigin = teamId;
+      openSpecificPlanFromCalendar(teamId, card.dataset.planId);
+    });
+  });
+}
+
+document.getElementById('teamDetailBackBtn').addEventListener('click', showDirectorView);
+document.getElementById('teamDetailNewPlanBtn').addEventListener('click', ()=>{
+  const teamId = getCurrentTeamId();
+  if(!teamId) return;
+  plan = [];
+  currentTemplateSource = null;
+  renderTimeline();
+  updateDirectorBanner();
+  planBuilderDrawerOrigin = teamId;
+  openPlanBuilderDrawer();
+});
+
 /* ---------- coach / director view toggle ---------- */
 function hideAllViews(){
   document.getElementById('coachViewContent').style.display = 'none';
   document.getElementById('gamedayViewContent').style.display = 'none';
   document.getElementById('directorViewContent').style.display = 'none';
+  document.getElementById('teamDetailContent').style.display = 'none';
   document.getElementById('coachAllocation').style.display = 'none';
   document.getElementById('coachMetaRow').style.display = 'none';
   // A real tab switch always wins over a drawer left open from the Dashboard.
@@ -3865,6 +4014,15 @@ function closePlanBuilderDrawer(){
   // have turned a dashed "not yet planned" chip into a real one, or changed totals.
   renderClubCalendarMonth();
   renderDirectorDashboard();
+  // If the drawer was opened from Team Detail, that view is what's actually
+  // visible underneath — refresh its plan list too, not just the dashboard.
+  if(planBuilderDrawerOrigin){
+    const originTeamId = planBuilderDrawerOrigin;
+    planBuilderDrawerOrigin = null;
+    if(document.getElementById('teamDetailContent').style.display !== 'none'){
+      renderTeamDetailPlans(originTeamId);
+    }
+  }
 }
 document.getElementById('drawerBackBtn').addEventListener('click', closePlanBuilderDrawer);
 document.getElementById('planBuilderBackdrop').addEventListener('click', closePlanBuilderDrawer);
@@ -4255,7 +4413,7 @@ async function renderDirectorDashboard(){
         </div>
         <div class="club-team-right">
           ${statusHtml}
-          <button class="mini-btn-text build-plan-btn" data-team-id="${team.id}">${latest ? 'Open plan' : 'Build plan'}</button>
+          <button class="mini-btn-text open-team-btn" data-team-id="${team.id}">Open team</button>
         </div>
       </div>
     `);
@@ -4277,8 +4435,8 @@ async function renderDirectorDashboard(){
       }catch(err){ console.error('Bad drag payload', err); }
     });
   });
-  listEl.querySelectorAll('.build-plan-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>openPlanBuilderForTeam(btn.dataset.teamId));
+  listEl.querySelectorAll('.open-team-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>showTeamDetailView(btn.dataset.teamId));
   });
 
   // club-wide category balance across every team's most recent plan
