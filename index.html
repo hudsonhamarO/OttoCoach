@@ -1623,6 +1623,38 @@
   </div>
 </div>
 
+<!-- New-plan wizard: asks date/start time/length up front, before the builder
+     opens, so a brand new practice doesn't land on a blank timeline next to
+     empty fields still waiting to be filled in. -->
+<div class="modal-overlay" id="newPlanWizardModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="newPlanWizardTitle">New practice</h3>
+      <button class="modal-close" data-close="newPlanWizardModal">✕</button>
+    </div>
+    <p class="modal-sub">Quick setup, then straight to the timeline.</p>
+    <div class="ai-field-row">
+      <div class="ai-field">
+        <label for="newPlanWizardDate">Date</label>
+        <input type="date" id="newPlanWizardDate">
+      </div>
+      <div class="ai-field">
+        <label for="newPlanWizardStart">Start time</label>
+        <input type="time" id="newPlanWizardStart">
+      </div>
+    </div>
+    <div class="ai-field-row">
+      <div class="ai-field">
+        <label for="newPlanWizardLength">Target length (min)</label>
+        <input type="number" id="newPlanWizardLength" min="15" step="5" value="90">
+      </div>
+      <div class="ai-field" style="display:flex;align-items:flex-end;">
+        <button class="btn-primary" id="newPlanWizardGoBtn" style="width:100%;">Start building →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="manageTeamsModal">
   <div class="modal">
     <div class="modal-header">
@@ -4075,12 +4107,42 @@ document.getElementById('teamDetailScheduleBtn').addEventListener('click', async
   await openRecurringModal(getCurrentTeamId());
 });
 document.getElementById('teamDetailBackBtn').addEventListener('click', showDirectorView);
-document.getElementById('teamDetailNewPlanBtn').addEventListener('click', ()=>{
+// Starting a brand new plan asks date/start/length up front in a small
+// modal instead of dropping the coach onto a blank timeline next to empty
+// header fields still waiting to be filled in. Defaults to the team's next
+// upcoming recurring practice day/time when it has one.
+document.getElementById('teamDetailNewPlanBtn').addEventListener('click', async ()=>{
   const teamId = getCurrentTeamId();
   if(!teamId) return;
+  const team = CLUB_TEAMS.find(t=>t.id===teamId);
+  document.getElementById('newPlanWizardTitle').textContent = team ? `New practice — ${team.name}` : 'New practice';
+
+  const today = new Date();
+  const recurring = await getRecurringSlots(teamId);
+  let defaultDate = toISODate(today);
+  let defaultStart = '18:00';
+  for(let i=0;i<14;i++){
+    const d = new Date(today); d.setDate(d.getDate()+i);
+    const match = recurring.find(s=>s.day===d.getDay());
+    if(match){ defaultDate = toISODate(d); defaultStart = match.start; break; }
+  }
+  document.getElementById('newPlanWizardDate').value = defaultDate;
+  document.getElementById('newPlanWizardStart').value = defaultStart;
+  document.getElementById('newPlanWizardLength').value = 90;
+  openModal('newPlanWizardModal');
+});
+document.getElementById('newPlanWizardGoBtn').addEventListener('click', ()=>{
+  const teamId = getCurrentTeamId();
+  if(!teamId) return;
+  const date = document.getElementById('newPlanWizardDate').value;
+  const start = document.getElementById('newPlanWizardStart').value || '18:00';
+  const length = document.getElementById('newPlanWizardLength').value || 90;
+  closeModal('newPlanWizardModal');
+  document.getElementById('practiceDate').value = date;
+  document.getElementById('startTime').value = start;
+  document.getElementById('targetLen').value = length;
   plan = [];
   currentTemplateSource = null;
-  document.getElementById('practiceDate').value = '';
   renderTimeline();
   updateDirectorBanner();
   planBuilderDrawerOrigin = teamId;
