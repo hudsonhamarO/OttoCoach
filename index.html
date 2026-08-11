@@ -796,7 +796,9 @@
   #gamedayViewContent .stat-btn.neutral:hover{filter:brightness(.95);}
   #gamedayViewContent .stat-btn.opp-point{background:var(--purple-deep);width:100%;padding:14px;}
   #gamedayViewContent .stat-btn:disabled{opacity:.4;cursor:not-allowed;}
-  #gamedayViewContent .divider{border-top:1px dashed var(--line);margin:14px 0;}
+  /* .divider is used across many non-gameday modals (Manage Teams, Club overview,
+     AI Drill) too, so this needs to be a global rule, not scoped to gameday alone */
+  .divider{border-top:1px dashed var(--line);margin:14px 0;}
   #gamedayViewContent .streak-banner{text-align:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:15px;color:var(--navy);margin:0 0 14px;padding:8px;border-radius:8px;background:var(--off-white);}
   #gamedayViewContent .streak-banner.us-streak{background:#F1FBE4;color:#3A6B0E;}
   #gamedayViewContent .streak-banner.opp-streak{background:#FDEAEA;color:#B23A3A;}
@@ -823,19 +825,22 @@
   #gamedayViewContent .modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--off-white);color:var(--navy);font-size:16px;cursor:pointer;}
   #gamedayViewContent .modal-close:hover{background:var(--line);}
   #gamedayViewContent .modal-sub{font-size:12px;color:#767C88;margin:0 0 14px;}
-  #gamedayViewContent .field-row{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
-  #gamedayViewContent .field-row label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#767C88;width:70px;flex-shrink:0;}
-  #gamedayViewContent .field-row input, #gamedayViewContent .field-row select{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);}
-  #gamedayViewContent .roster-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:8px;transition:box-shadow .15s ease;}
-  #gamedayViewContent .roster-row:hover{box-shadow:var(--shadow-sm);}
-  #gamedayViewContent .roster-row input[type="text"]{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;}
-  #gamedayViewContent .roster-row input[type="text"].num-input{flex:0 0 46px;text-align:center;}
-  #gamedayViewContent .roster-libero-label{font-size:11px;color:#565B66;display:flex;align-items:center;gap:4px;white-space:nowrap;}
-  #gamedayViewContent .roster-del{width:26px;height:26px;border:1px solid var(--line);background:var(--white);border-radius:6px;cursor:pointer;color:var(--coral);flex-shrink:0;}
-  #gamedayViewContent .lineup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
-  #gamedayViewContent .lineup-field{display:flex;flex-direction:column;gap:4px;}
-  #gamedayViewContent .lineup-field label{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;color:#767C88;}
-  #gamedayViewContent .lineup-field select{padding:8px;border:1px solid var(--line);border-radius:7px;font-size:13px;background-color:var(--off-white);}
+  /* setupModal and newSetModal are Otto Gameday's pre-match forms, but they sit
+     as DOM siblings of #gamedayViewContent rather than inside it — scope these
+     to all three so the roster/lineup/first-serve controls actually get styled */
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .field-row{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .field-row label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#767C88;width:70px;flex-shrink:0;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .field-row input, :is(#gamedayViewContent, #setupModal, #newSetModal) .field-row select{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border:1px solid var(--line);border-radius:8px;transition:box-shadow .15s ease;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-row:hover{box-shadow:var(--shadow-sm);}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-row input[type="text"]{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:'Inter',sans-serif;font-size:12.5px;background-color:var(--off-white);}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-row input[type="text"].num-input{flex:0 0 46px;text-align:center;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-libero-label{font-size:11px;color:#565B66;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .roster-del{width:26px;height:26px;border:1px solid var(--line);background:var(--white);border-radius:6px;cursor:pointer;color:var(--coral);flex-shrink:0;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .lineup-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .lineup-field{display:flex;flex-direction:column;gap:4px;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .lineup-field label{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;color:#767C88;}
+  :is(#gamedayViewContent, #setupModal, #newSetModal) .lineup-field select{padding:8px;border:1px solid var(--line);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);}
   #gamedayViewContent .btn-primary{width:100%;padding:11px;border-radius:9px;border:none;background:linear-gradient(135deg, var(--gold) 0%, #A9DA3A 100%);color:var(--purple-deep);font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(189,238,73,.35);}
   #gamedayViewContent .btn-primary:hover{filter:brightness(1.05);box-shadow:0 4px 14px rgba(189,238,73,.5);}
   #gamedayViewContent .btn-secondary{width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--navy);background:var(--white);color:var(--navy);font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
@@ -1542,22 +1547,24 @@
 
     <div class="divider"></div>
     <h4 class="detail-section-title" style="margin-top:0;">Add a team</h4>
-    <div class="custom-form-row">
-      <input type="text" id="newTeamName" placeholder="Team name (e.g. 14U Select)">
-    </div>
-    <div class="custom-form-row">
-      <select id="newTeamAgeGroup">
-        <option>10U</option><option>11U</option><option>12U</option><option>13U</option>
-        <option selected>14U</option><option>15U</option><option>16U</option><option>17U</option>
-        <option>18U</option><option>Adult / Open</option>
-      </select>
-      <select id="newTeamDivision">
-        <option value="Girls' / Women's">Girls' / Women's</option>
-        <option value="Boys' / Men's">Boys' / Men's</option>
-      </select>
-    </div>
-    <div class="custom-form-row">
-      <input type="text" id="newTeamCoach" placeholder="Coach name (optional)">
+    <div class="custom-form" style="margin-top:0;padding-top:0;border-top:none;">
+      <div class="custom-form-row">
+        <input type="text" id="newTeamName" placeholder="Team name (e.g. 14U Select)">
+      </div>
+      <div class="custom-form-row">
+        <select id="newTeamAgeGroup">
+          <option>10U</option><option>11U</option><option>12U</option><option>13U</option>
+          <option selected>14U</option><option>15U</option><option>16U</option><option>17U</option>
+          <option>18U</option><option>Adult / Open</option>
+        </select>
+        <select id="newTeamDivision">
+          <option value="Girls' / Women's">Girls' / Women's</option>
+          <option value="Boys' / Men's">Boys' / Men's</option>
+        </select>
+      </div>
+      <div class="custom-form-row">
+        <input type="text" id="newTeamCoach" placeholder="Coach name (optional)">
+      </div>
     </div>
     <button class="btn-secondary" id="addTeamBtn"><svg class="icon"><use href="#i-plus"/></svg>Add team</button>
   </div>
@@ -1676,9 +1683,11 @@
     <div class="modal-divider"></div>
 
     <p class="modal-sub" style="margin-bottom:6px;">Join a shared practice</p>
-    <div class="custom-form-row">
-      <input type="text" id="joinCodeInput" placeholder="Enter code" maxlength="4">
-      <button class="btn-secondary" id="joinCodeBtn" style="width:auto;flex-shrink:0;padding:9px 16px;">Load</button>
+    <div class="custom-form" style="margin-top:0;padding-top:0;border-top:none;">
+      <div class="custom-form-row">
+        <input type="text" id="joinCodeInput" placeholder="Enter code" maxlength="4">
+        <button class="btn-secondary" id="joinCodeBtn" style="width:auto;flex-shrink:0;padding:9px 16px;">Load</button>
+      </div>
     </div>
   </div>
 </div>
