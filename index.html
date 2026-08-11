@@ -566,6 +566,43 @@
   .ai-field-row .ai-field select, .ai-field-row .ai-field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;background-color:var(--off-white);}
   .ai-generate-btn{background:linear-gradient(135deg, var(--gold), #D4F27A);border-color:var(--gold) !important;margin-bottom:4px;}
   .ai-generate-btn:hover{background:var(--gold);color:var(--navy) !important;}
+
+  /* ===== New-plan wizard: its own moment, not another gray form ===== */
+  .wizard-modal{position:relative;max-width:420px;padding:0;overflow:hidden;overflow-y:visible;border-radius:20px;}
+  .wizard-modal-head{
+    position:relative;overflow:hidden;
+    background:linear-gradient(120deg, var(--navy), var(--purple-deep));
+    padding:28px 26px 24px;color:var(--white);
+  }
+  .wizard-modal-stripe-corner{position:absolute;top:0;right:0;width:110px;height:100%;clip-path:polygon(45% 0,100% 0,100% 100%,0 100%);overflow:hidden;pointer-events:none;}
+  .wizard-modal-stripe-corner::before{
+    content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(115deg, transparent 0 9px, var(--brand-lime) 9px 14px, transparent 14px 23px);
+    opacity:.8;
+  }
+  .wizard-modal-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--brand-lime);margin:0 0 6px;position:relative;}
+  .wizard-modal-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:25px;text-transform:uppercase;margin:0;color:var(--white);position:relative;max-width:280px;text-wrap:balance;}
+  .wizard-modal-close{
+    position:absolute;top:16px;right:16px;z-index:1;
+    width:30px;height:30px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.14);color:var(--white);font-size:14px;cursor:pointer;
+  }
+  .wizard-modal-close:hover{background:rgba(255,255,255,.24);}
+  .wizard-modal-body{padding:24px 26px 26px;}
+  .wizard-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .wizard-field{margin-bottom:14px;}
+  .wizard-field-row .wizard-field{margin-bottom:0;}
+  .wizard-field label{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8B8796;margin-bottom:6px;}
+  .wizard-field input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;background-color:var(--off-white);color:var(--charcoal);}
+  .wizard-field input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(79,1,163,.1);}
+  .wizard-cta{
+    width:100%;padding:13px;border:none;border-radius:11px;margin-top:4px;
+    background:var(--brand-lime);color:var(--purple-deep);
+    font-family:'Inter',sans-serif;font-weight:700;font-size:14.5px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(166,224,0,.35);
+    transition:filter .15s ease, box-shadow .15s ease;
+  }
+  .wizard-cta:hover{filter:brightness(1.05);box-shadow:0 6px 18px rgba(166,224,0,.45);}
   .ai-loading-text{text-align:center;font-size:13px;color:#767C88;padding:16px 0;font-style:italic;}
   .ai-error{background:#FDEAEA;border:1px solid #F2B8B8;color:#B23A3A;border-radius:8px;padding:10px 12px;font-size:13px;margin-top:10px;}
   .ai-rationale{font-size:13px;color:var(--charcoal);font-style:italic;background:var(--off-white);border-radius:8px;padding:10px 12px;margin:12px 0;}
@@ -1627,30 +1664,29 @@
      opens, so a brand new practice doesn't land on a blank timeline next to
      empty fields still waiting to be filled in. -->
 <div class="modal-overlay" id="newPlanWizardModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 class="modal-title" id="newPlanWizardTitle">New practice</h3>
-      <button class="modal-close" data-close="newPlanWizardModal">✕</button>
+  <div class="modal wizard-modal">
+    <button class="wizard-modal-close" data-close="newPlanWizardModal">✕</button>
+    <div class="wizard-modal-head">
+      <div class="wizard-modal-stripe-corner"></div>
+      <p class="wizard-modal-eyebrow">New practice</p>
+      <h3 class="wizard-modal-title" id="newPlanWizardTitle">Team</h3>
     </div>
-    <p class="modal-sub">Quick setup, then straight to the timeline.</p>
-    <div class="ai-field-row">
-      <div class="ai-field">
-        <label for="newPlanWizardDate">Date</label>
-        <input type="date" id="newPlanWizardDate">
+    <div class="wizard-modal-body">
+      <div class="wizard-field-row">
+        <div class="wizard-field">
+          <label for="newPlanWizardDate">Date</label>
+          <input type="date" id="newPlanWizardDate">
+        </div>
+        <div class="wizard-field">
+          <label for="newPlanWizardStart">Start time</label>
+          <input type="time" id="newPlanWizardStart">
+        </div>
       </div>
-      <div class="ai-field">
-        <label for="newPlanWizardStart">Start time</label>
-        <input type="time" id="newPlanWizardStart">
-      </div>
-    </div>
-    <div class="ai-field-row">
-      <div class="ai-field">
+      <div class="wizard-field">
         <label for="newPlanWizardLength">Target length (min)</label>
         <input type="number" id="newPlanWizardLength" min="15" step="5" value="90">
       </div>
-      <div class="ai-field" style="display:flex;align-items:flex-end;">
-        <button class="btn-primary" id="newPlanWizardGoBtn" style="width:100%;">Start building →</button>
-      </div>
+      <button class="wizard-cta" id="newPlanWizardGoBtn">Start building →</button>
     </div>
   </div>
 </div>
@@ -4115,7 +4151,7 @@ document.getElementById('teamDetailNewPlanBtn').addEventListener('click', async 
   const teamId = getCurrentTeamId();
   if(!teamId) return;
   const team = CLUB_TEAMS.find(t=>t.id===teamId);
-  document.getElementById('newPlanWizardTitle').textContent = team ? `New practice — ${team.name}` : 'New practice';
+  document.getElementById('newPlanWizardTitle').textContent = team ? team.name : 'Practice';
 
   const today = new Date();
   const recurring = await getRecurringSlots(teamId);
