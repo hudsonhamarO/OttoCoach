@@ -1999,6 +1999,10 @@ function updateAccountChip(){
 async function logIntoAccount(account){
   currentAccount = account;
   await saveMyName(account.name); // keeps the existing "my teams" filter logic in sync
+  // Re-fetch club data now that we're authenticated — the very first load (in
+  // init(), before any session exists) runs signed-out and RLS silently blocks
+  // it, leaving CLUB_TEAMS empty until we know who's actually signed in.
+  await loadClubTeams();
   document.getElementById('authGate').style.display = 'none';
   updateAccountChip();
   populateTeamSwitcher();
@@ -2423,7 +2427,7 @@ function getCurrentTeamId(){
   const sel = document.getElementById('teamName');
   const opt = sel.selectedOptions[0];
   if(opt && opt.dataset.teamId) return opt.dataset.teamId;
-  const my = getMyTeams();
+  const my = getDashboardTeams();
   return my[0] ? my[0].id : null;
 }
 // Plan indexes are stored per-team and shared=true, since a club platform means
@@ -2904,6 +2908,12 @@ function closeModal(id){
 function showConfirmModal(message){
   return new Promise(resolve=>{
     document.getElementById('confirmModalText').textContent = message;
+    // Every modal shares the same overlay z-index, so when a confirm is
+    // triggered from inside an already-open modal (e.g. "Join a shared
+    // practice" while Assistant Coaches is open), equal z-index falls back to
+    // DOM order — moving this to the end of <body> guarantees it paints on
+    // top instead of silently opening underneath the modal that spawned it.
+    document.body.appendChild(document.getElementById('confirmModal'));
     openModal('confirmModal');
     const yesBtn = document.getElementById('confirmYesBtn');
     const noBtn = document.getElementById('confirmNoBtn');
@@ -3505,7 +3515,7 @@ async function renderSavedPlans(){
 
   const sections = [];
   let totalCount = 0;
-  for(const team of getMyTeams()){
+  for(const team of getDashboardTeams()){
     const idx = await getPlanIndex(team.id);
     if(idx.length===0) continue;
     totalCount += idx.length;
@@ -3923,7 +3933,7 @@ document.getElementById('pmGenerateNotesBtn').addEventListener('click', async ()
 /* ---------- team switcher ---------- */
 function populateTeamSwitcher(){
   const sel = document.getElementById('teamName');
-  const my = getMyTeams();
+  const my = getDashboardTeams();
   if(my.length===0){
     sel.innerHTML = `<option value="">No teams yet — add one in Manage Teams</option>`;
     applySport('volleyball');
@@ -3942,7 +3952,11 @@ function updateDirectorBanner(){
   const team = CLUB_TEAMS.find(t=>t.id===getCurrentTeamId());
   const banner = document.getElementById('directorBanner');
   const isMine = team && myName.trim() && team.coachName.trim().toLowerCase()===myName.trim().toLowerCase();
-  if(team && !isMine){
+  // Only ever show inside the practice-plan builder — this can be called (via
+  // autoLoadPlanForSelection/loadPlan) while the Dashboard or another view is
+  // what's actually on screen, e.g. right after login, and should stay quiet then.
+  const builderVisible = document.getElementById('coachMetaRow').style.display !== 'none';
+  if(team && !isMine && builderVisible){
     banner.textContent = `You're building this plan on behalf of ${team.name} — normally coached by ${team.coachName || 'no one assigned yet'}.`;
     banner.style.display = 'flex';
   } else {
@@ -4249,6 +4263,7 @@ function hideAllViews(){
   document.getElementById('teamDetailContent').style.display = 'none';
   document.getElementById('coachAllocation').style.display = 'none';
   document.getElementById('coachMetaRow').style.display = 'none';
+  document.getElementById('directorBanner').style.display = 'none';
   // A real tab switch always wins over a drawer left open from the Dashboard.
   document.getElementById('practiceBuilderPanel').classList.remove('drawer-mode');
   document.getElementById('planBuilderBackdrop').classList.remove('show');
@@ -4263,6 +4278,7 @@ function showCoachView(){
   document.getElementById('practiceMetaDivider').style.display = 'block';
   document.getElementById('coachViewBtn').classList.add('active');
   document.getElementById('mainTitle').textContent = 'Practice Plan Builder';
+  updateDirectorBanner();
 }
 
 // Opens the practice builder as a slide-over drawer ON TOP of whichever view is
@@ -4282,6 +4298,7 @@ function openPlanBuilderDrawer(){
     (teamOpt ? teamOpt.value : 'Practice') + (dateLabel ? ' — ' + dateLabel : '');
   document.getElementById('practiceBuilderPanel').classList.add('drawer-mode');
   document.getElementById('planBuilderBackdrop').classList.add('show');
+  updateDirectorBanner();
 }
 // Building a template needs none of the team/date/length scaffolding a real
 // practice plan does — this strips the drawer down to just the drill
@@ -4316,6 +4333,7 @@ function closePlanBuilderDrawer(){
   document.getElementById('coachViewContent').style.display = 'none';
   document.getElementById('coachAllocation').style.display = 'none';
   document.getElementById('coachMetaRow').style.display = 'none';
+  document.getElementById('directorBanner').style.display = 'none';
   buildingTemplateName = null;
   exitTemplateBuildingMode();
   // Refresh the dashboard underneath — a save/schedule made in the drawer may
