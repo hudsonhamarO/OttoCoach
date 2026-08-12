@@ -1238,12 +1238,18 @@
 
     <div class="grid">
       <div class="panel">
-        <h2 class="panel-title">Templates</h2>
+        <div class="director-header">
+          <h2 class="panel-title" style="margin-bottom:0;">Templates</h2>
+          <button class="mini-btn" id="newTemplateBtn" title="Build a new template"><svg class="icon"><use href="#i-plus"/></svg></button>
+        </div>
         <p class="modal-sub">Drag a template onto a team to apply it — you'll set the date before saving.</p>
         <div id="directorTemplatesList"></div>
       </div>
       <div class="panel">
-        <h2 class="panel-title" id="dashboardTeamsTitle">Teams</h2>
+        <div class="director-header">
+          <h2 class="panel-title" id="dashboardTeamsTitle" style="margin-bottom:0;">Teams</h2>
+          <button class="mini-btn" id="dashboardAddTeamBtn" title="Add a team"><svg class="icon"><use href="#i-plus"/></svg></button>
+        </div>
         <div id="clubTeamsList"></div>
       </div>
     </div>
@@ -1687,6 +1693,27 @@
         <input type="number" id="newPlanWizardLength" min="15" step="5" value="90">
       </div>
       <button class="wizard-cta" id="newPlanWizardGoBtn">Start building →</button>
+    </div>
+  </div>
+</div>
+
+<!-- New-template naming: templates have no team/date, so this skips straight
+     to the one thing that matters — a name — then opens the builder in a
+     stripped-down "building a template" mode. -->
+<div class="modal-overlay" id="newTemplateWizardModal">
+  <div class="modal wizard-modal">
+    <button class="wizard-modal-close" data-close="newTemplateWizardModal">✕</button>
+    <div class="wizard-modal-head">
+      <div class="wizard-modal-stripe-corner"></div>
+      <p class="wizard-modal-eyebrow">New template</p>
+      <h3 class="wizard-modal-title">Name it</h3>
+    </div>
+    <div class="wizard-modal-body">
+      <div class="wizard-field">
+        <label for="newTemplateWizardName">Template name</label>
+        <input type="text" id="newTemplateWizardName" placeholder="e.g. &quot;Tuesday Fundamentals&quot;">
+      </div>
+      <button class="wizard-cta" id="newTemplateWizardGoBtn">Start building →</button>
     </div>
   </div>
 </div>
@@ -2309,6 +2336,8 @@ let plan = [];
 let uidCounter = 1;
 let currentTemplateSource = null; // name of the template this plan was loaded from, if any (for traceability)
 let planBuilderDrawerOrigin = null; // teamId if the drawer was opened from Team Detail, so closing it refreshes that view too
+let buildingTemplateName = null; // set while the builder is being used to create a template instead of a dated practice plan
+let templateModeUIActive = false; // tracks whether the drawer's chrome is currently stripped down for template mode, so it gets restored on close regardless of how that happens
 
 /* ---------- storage helpers ---------- */
 // ============================================================================
@@ -3406,7 +3435,9 @@ async function setTemplateIndex(idx){ await safeSet('template-index', JSON.strin
 
 async function saveCurrentAsTemplate(){
   if(plan.length===0){ alert('Add at least one drill to your timeline before saving it as a template.'); return; }
-  const name = await showPromptModal('Name this template:', 'e.g. "Tuesday Fundamentals"');
+  // Arrived here via the dashboard's "+" on Templates — the name was already
+  // collected up front, so skip asking again.
+  const name = buildingTemplateName || await showPromptModal('Name this template:', 'e.g. "Tuesday Fundamentals"');
   if(!name) return;
   const id = 'ct'+Date.now();
   const items = plan.map(p=>({name:p.name, cat:p.cat, dur:p.dur, desc:p.desc||''}));
@@ -3417,6 +3448,11 @@ async function saveCurrentAsTemplate(){
   idx.unshift({id, name, drillCount: items.length, totalMin: total});
   await setTemplateIndex(idx);
   await renderMyTemplates();
+  if(buildingTemplateName){
+    buildingTemplateName = null;
+    closePlanBuilderDrawer();
+    await renderDirectorTemplates();
+  }
 }
 async function renderMyTemplates(){
   const idx = await getTemplateIndex();
@@ -4184,6 +4220,27 @@ document.getElementById('newPlanWizardGoBtn').addEventListener('click', ()=>{
   buildPlanForSlot(teamId, date, start, length);
 });
 
+// Dashboard's "+" on Templates — asks for a name, then opens the builder
+// stripped down to just drill library + timeline (see enterTemplateBuildingMode).
+document.getElementById('newTemplateBtn').addEventListener('click', ()=>{
+  document.getElementById('newTemplateWizardName').value = '';
+  openModal('newTemplateWizardModal');
+  document.getElementById('newTemplateWizardName').focus();
+});
+document.getElementById('newTemplateWizardGoBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('newTemplateWizardName').value.trim();
+  if(!name){ document.getElementById('newTemplateWizardName').focus(); return; }
+  closeModal('newTemplateWizardModal');
+  plan = [];
+  currentTemplateSource = null;
+  renderTimeline();
+  openPlanBuilderDrawer();
+  enterTemplateBuildingMode(name);
+});
+document.getElementById('newTemplateWizardName').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('newTemplateWizardGoBtn').click();
+});
+
 /* ---------- coach / director view toggle ---------- */
 function hideAllViews(){
   document.getElementById('coachViewContent').style.display = 'none';
@@ -4226,12 +4283,41 @@ function openPlanBuilderDrawer(){
   document.getElementById('practiceBuilderPanel').classList.add('drawer-mode');
   document.getElementById('planBuilderBackdrop').classList.add('show');
 }
+// Building a template needs none of the team/date/length scaffolding a real
+// practice plan does — this strips the drawer down to just the drill
+// library and timeline, with a single obvious "save" action.
+function enterTemplateBuildingMode(name){
+  buildingTemplateName = name;
+  templateModeUIActive = true;
+  document.getElementById('coachMetaRow').style.display = 'none';
+  document.getElementById('directorBanner').style.display = 'none';
+  document.getElementById('drawerBarTitle').textContent = `New template — ${name}`;
+  ['savePlanQuickBtn','copyBtn','recapBtn','printBtn'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
+  });
+  const saveTplBtn = document.getElementById('saveAsTemplateQuickBtn');
+  saveTplBtn.classList.remove('btn-outline');
+  saveTplBtn.classList.add('btn-primary');
+}
+function exitTemplateBuildingMode(){
+  if(!templateModeUIActive) return;
+  templateModeUIActive = false;
+  ['savePlanQuickBtn','copyBtn','recapBtn','printBtn'].forEach(id=>{
+    document.getElementById(id).style.display = '';
+  });
+  const saveTplBtn = document.getElementById('saveAsTemplateQuickBtn');
+  saveTplBtn.classList.remove('btn-primary');
+  saveTplBtn.classList.add('btn-outline');
+}
+
 function closePlanBuilderDrawer(){
   document.getElementById('practiceBuilderPanel').classList.remove('drawer-mode');
   document.getElementById('planBuilderBackdrop').classList.remove('show');
   document.getElementById('coachViewContent').style.display = 'none';
   document.getElementById('coachAllocation').style.display = 'none';
   document.getElementById('coachMetaRow').style.display = 'none';
+  buildingTemplateName = null;
+  exitTemplateBuildingMode();
   // Refresh the dashboard underneath — a save/schedule made in the drawer may
   // have turned a dashed "not yet planned" chip into a real one, or changed totals.
   renderClubCalendarMonth();
@@ -4751,6 +4837,15 @@ document.getElementById('manageTeamsBtn').addEventListener('click', ()=>{
   document.getElementById('manageTeamsSignedInAs').textContent = currentAccount ? `Signed in as ${currentAccount.name}.` : '';
   renderManageTeams();
   openModal('manageTeamsModal');
+});
+// Same modal as "Manage Teams", but jumps straight to the add-a-team form
+// since that's the one reason someone clicks a "+" next to "Teams".
+document.getElementById('dashboardAddTeamBtn').addEventListener('click', ()=>{
+  document.getElementById('manageTeamsSignedInAs').textContent = currentAccount ? `Signed in as ${currentAccount.name}.` : '';
+  renderManageTeams();
+  openModal('manageTeamsModal');
+  document.getElementById('newTeamName').focus();
+  document.getElementById('newTeamName').scrollIntoView({block:'center', behavior:'smooth'});
 });
 document.getElementById('addTeamBtn').addEventListener('click', async ()=>{
   const nameEl = document.getElementById('newTeamName');
