@@ -4114,45 +4114,55 @@ async function renderTeamDetailSchedule(teamId){
   }).join('');
   wrap.querySelectorAll('.td-sched-row').forEach(row=>{
     row.addEventListener('click', ()=>{
-      planBuilderDrawerOrigin = teamId;
       if(row.dataset.planId){
+        planBuilderDrawerOrigin = teamId;
         openSpecificPlanFromCalendar(teamId, row.dataset.planId);
       } else {
-        buildPlanForSlot(teamId, row.dataset.date, row.dataset.time);
+        openNewPlanWizard(teamId, row.dataset.date, row.dataset.time || '18:00');
       }
     });
   });
 }
 
-// One click from an unplanned schedule slot straight into the builder, with
-// the team, date, and start time already filled in — the whole point of
-// unifying the schedule was to make building the next practice frictionless.
-function buildPlanForSlot(teamId, dateIso, startTime){
+// Actually builds the blank plan and opens the drawer — called once the
+// wizard's been filled in (or skipped, for callers that already know
+// everything they need).
+function buildPlanForSlot(teamId, dateIso, startTime, targetLength){
   const team = ensureTeamSelectable(teamId);
   if(!team) return;
   document.getElementById('practiceDate').value = dateIso;
   if(startTime) document.getElementById('startTime').value = startTime;
+  if(targetLength) document.getElementById('targetLen').value = targetLength;
   plan = [];
   currentTemplateSource = null;
   renderTimeline();
   updateDirectorBanner();
+  planBuilderDrawerOrigin = teamId;
   openPlanBuilderDrawer();
+}
+
+// Every "start a blank plan" entry point — the header button and each
+// unplanned schedule row — opens this same wizard rather than jumping
+// straight to the builder, so date/start/length are always confirmed first.
+function openNewPlanWizard(teamId, defaultDate, defaultStart){
+  const team = CLUB_TEAMS.find(t=>t.id===teamId);
+  document.getElementById('newPlanWizardTitle').textContent = team ? team.name : 'Practice';
+  document.getElementById('newPlanWizardDate').value = defaultDate;
+  document.getElementById('newPlanWizardStart').value = defaultStart;
+  document.getElementById('newPlanWizardLength').value = 90;
+  openModal('newPlanWizardModal');
 }
 
 document.getElementById('teamDetailScheduleBtn').addEventListener('click', async ()=>{
   await openRecurringModal(getCurrentTeamId());
 });
 document.getElementById('teamDetailBackBtn').addEventListener('click', showDirectorView);
-// Starting a brand new plan asks date/start/length up front in a small
-// modal instead of dropping the coach onto a blank timeline next to empty
-// header fields still waiting to be filled in. Defaults to the team's next
-// upcoming recurring practice day/time when it has one.
+// Defaults to the team's next upcoming recurring practice day/time when it
+// has one — the row-click path already knows its own date/time and skips
+// straight past this search.
 document.getElementById('teamDetailNewPlanBtn').addEventListener('click', async ()=>{
   const teamId = getCurrentTeamId();
   if(!teamId) return;
-  const team = CLUB_TEAMS.find(t=>t.id===teamId);
-  document.getElementById('newPlanWizardTitle').textContent = team ? team.name : 'Practice';
-
   const today = new Date();
   const recurring = await getRecurringSlots(teamId);
   let defaultDate = toISODate(today);
@@ -4162,10 +4172,7 @@ document.getElementById('teamDetailNewPlanBtn').addEventListener('click', async 
     const match = recurring.find(s=>s.day===d.getDay());
     if(match){ defaultDate = toISODate(d); defaultStart = match.start; break; }
   }
-  document.getElementById('newPlanWizardDate').value = defaultDate;
-  document.getElementById('newPlanWizardStart').value = defaultStart;
-  document.getElementById('newPlanWizardLength').value = 90;
-  openModal('newPlanWizardModal');
+  openNewPlanWizard(teamId, defaultDate, defaultStart);
 });
 document.getElementById('newPlanWizardGoBtn').addEventListener('click', ()=>{
   const teamId = getCurrentTeamId();
@@ -4174,15 +4181,7 @@ document.getElementById('newPlanWizardGoBtn').addEventListener('click', ()=>{
   const start = document.getElementById('newPlanWizardStart').value || '18:00';
   const length = document.getElementById('newPlanWizardLength').value || 90;
   closeModal('newPlanWizardModal');
-  document.getElementById('practiceDate').value = date;
-  document.getElementById('startTime').value = start;
-  document.getElementById('targetLen').value = length;
-  plan = [];
-  currentTemplateSource = null;
-  renderTimeline();
-  updateDirectorBanner();
-  planBuilderDrawerOrigin = teamId;
-  openPlanBuilderDrawer();
+  buildPlanForSlot(teamId, date, start, length);
 });
 
 /* ---------- coach / director view toggle ---------- */
