@@ -4667,6 +4667,10 @@ async function renderDirectorTemplates(){
 async function applyTemplateToTeam(ref, teamId){
   const team = ensureTeamSelectable(teamId);
   if(!team) return;
+  // The date field is shared/global, so it can be left on whatever date the
+  // director last happened to view (e.g. an old saved plan) — reset to today
+  // rather than silently carrying that stale date into a new template drop.
+  document.getElementById('practiceDate').valueAsDate = new Date();
 
   let items, name;
   if(ref.type==='builtin'){
